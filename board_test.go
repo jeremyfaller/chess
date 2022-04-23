@@ -124,6 +124,13 @@ func TestIsLegalMove(t *testing.T) {
 			false,
 			false,
 		},
+		{
+			"capture can stop check",
+			"rnb1kbnr/pppp1ppp/8/4p3/5P1q/8/PPPPP1P1/RNBQKBNR w KQkq - 0 3",
+			Move{p: White | Rook, to: coord("h4"), from: coord("h1"), isCapture: true},
+			true,
+			true,
+		},
 	}
 
 	for _, test := range tests {
@@ -140,10 +147,13 @@ func TestIsLegalMove(t *testing.T) {
 	}
 }
 
-func TestAddMoves(t *testing.T) {
+func TestGetMoves(t *testing.T) {
 	coord := testingCoordFunc(t)
-	move := func(p Piece, from, to string, isCap bool) Move {
-		return Move{p: p, from: coord(from), to: coord(to), isCapture: isCap}
+	move := func(p Piece, from, to string, capPiece Piece) Move {
+		if capPiece == Empty {
+			return Move{p: p, from: coord(from), to: coord(to)}
+		}
+		return Move{p: p, from: coord(from), to: coord(to), isCapture: true, captured: capPiece}
 	}
 	promo := func(p Piece, from, to string, promo Piece) Move {
 		return Move{p: p, from: coord(from), to: coord(to), promotion: promo}
@@ -166,8 +176,8 @@ func TestAddMoves(t *testing.T) {
 			"k7/8/8/8/8/8/P7/K w - - 0 1",
 			coord("a2"),
 			toSet([]Move{
-				move(White|Pawn, "a2", "a4", false),
-				move(White|Pawn, "a2", "a3", false),
+				move(White|Pawn, "a2", "a4", Empty),
+				move(White|Pawn, "a2", "a3", Empty),
 			}),
 		},
 		{ // Test that a non-opening pawn move is only one space.
@@ -175,7 +185,7 @@ func TestAddMoves(t *testing.T) {
 			"k7/8/8/8/8/P7/8/K7 w - - 0 1",
 			coord("a3"),
 			toSet([]Move{
-				move(White|Pawn, "a3", "a4", false),
+				move(White|Pawn, "a3", "a4", Empty),
 			}),
 		},
 		{ // Test moving into your own piece stops the move.
@@ -183,8 +193,8 @@ func TestAddMoves(t *testing.T) {
 			"k7/8/8/8/8/R7/8/R1K5 w - - 0 1",
 			coord("a1"),
 			toSet([]Move{
-				move(White|Rook, "a1", "a2", false),
-				move(White|Rook, "a1", "b1", false),
+				move(White|Rook, "a1", "a2", Empty),
+				move(White|Rook, "a1", "b1", Empty),
 			}),
 		},
 		{
@@ -192,13 +202,13 @@ func TestAddMoves(t *testing.T) {
 			"k7/8/8/8/8/8/8/R3K2R w - - 0 1",
 			coord("e1"),
 			toSet([]Move{
-				move(White|King, "e1", "d1", false),
-				move(White|King, "e1", "d2", false),
-				move(White|King, "e1", "e2", false),
-				move(White|King, "e1", "f1", false),
-				move(White|King, "e1", "f2", false),
-				move(White|King, "e1", "g1", false),
-				move(White|King, "e1", "c1", false),
+				move(White|King, "e1", "d1", Empty),
+				move(White|King, "e1", "d2", Empty),
+				move(White|King, "e1", "e2", Empty),
+				move(White|King, "e1", "f1", Empty),
+				move(White|King, "e1", "f2", Empty),
+				move(White|King, "e1", "g1", Empty),
+				move(White|King, "e1", "c1", Empty),
 			}),
 		},
 		{
@@ -224,6 +234,12 @@ func TestAddMoves(t *testing.T) {
 			coord("e1"),
 			toSet([]Move{}),
 		},
+		{
+			"capture can stop check",
+			"rnb1kbnr/pppp1ppp/8/4p3/5P1q/8/PPPPP1P1/RNBQKBNR w KQkq - 0 3",
+			coord("h1"),
+			toSet([]Move{move(White|Rook, "h1", "h4", Black|Queen)}),
+		},
 	}
 
 	for _, test := range tests {
@@ -231,8 +247,10 @@ func TestAddMoves(t *testing.T) {
 		if err != nil {
 			t.Fatalf("[%s] error creating board; %v", test.desc, err)
 		}
-		moves := toSet(b.addMoves(test.c, make([]Move, 0)))
+		moves := toSet(b.GetMoves(test.c))
 		if diff := pretty.Compare(test.moves, moves); diff != "" {
+			t.Logf("%v\n", test.moves)
+			t.Logf("%v\n", moves)
 			t.Errorf("[%s] moves unequal:\n%s", test.desc, diff)
 		}
 	}
@@ -274,6 +292,37 @@ func TestFENChecks(t *testing.T) {
 		}
 		if v := b.IsKingInCheck(Black | King); v != test.isBCheck {
 			t.Errorf("[%s] IsKingInCheck(Black|King) = %v, expected = %v", test.desc, v, test.isBCheck)
+		}
+	}
+}
+
+func TestWouldKingBeInCheck(t *testing.T) {
+	coord := testingCoordFunc(t)
+	move := func(p Piece, from, to string, isCap bool) Move {
+		return Move{p: p, from: coord(from), to: coord(to), isCapture: isCap}
+	}
+
+	tests := []struct {
+		desc  string
+		fen   string
+		move  Move
+		would bool
+	}{
+		{
+			"rook captures queen",
+			"rnb1kbnr/pppp1ppp/8/4p3/5P1q/8/PPPPP1P1/RNBQKBNR w KQkq - 0 3",
+			move(White|Rook, "h1", "h4", true),
+			false,
+		},
+	}
+
+	for i, test := range tests {
+		b, err := FromFEN(test.fen)
+		if err != nil {
+			t.Errorf("[%d] error converting fen(%q), %v", i, test.fen, err)
+		}
+		if v := b.wouldKingBeInCheck(&test.move); v != test.would {
+			t.Errorf("[%d] wouldKingBeInCheck(%v) = %v, expected %v", i, test.move, v, test.would)
 		}
 	}
 }

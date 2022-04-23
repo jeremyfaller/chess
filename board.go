@@ -431,7 +431,8 @@ func (b *Board) isLegalMove(m *Move) bool {
 	return true
 }
 
-func (b *Board) addMoves(c Coord, moves []Move) []Move {
+// GetMoves returns all moves for a given coordinate.
+func (b *Board) GetMoves(c Coord) (moves []Move) {
 	p := b.at(c)
 	if p.IsEmpty() {
 		return moves
@@ -446,20 +447,25 @@ func (b *Board) addMoves(c Coord, moves []Move) []Move {
 				break
 			}
 
-			// Check to see if the move is leagl.
 			move := Move{
 				p:    p,
 				to:   toPos,
 				from: c,
 			}
+			lastPos = toPos
 
-			// If the move isn't legal, none of the rest in this direction will be.
+			// Check to see if the move is leagl. If the move isn't legal, we
+			// might be done.
 			if !b.isLegalMove(&move) {
-				break
+				if !b.IsKingInCheck(p) {
+					break
+				}
+				if b.wouldKingBeInCheck(&move) {
+					continue
+				}
 			}
 
 			// It's a legal move.
-			lastPos = toPos
 			if !move.IsPromotion() {
 				moves = append(moves, move)
 			} else {
@@ -489,7 +495,7 @@ func (b *Board) PossibleMoves() []Move {
 		if p.Color() != b.turn { // not the color we want, skip
 			continue
 		}
-		moves = b.addMoves(c, moves)
+		moves = append(moves, b.GetMoves(c)...)
 	}
 	return moves
 }
@@ -682,7 +688,7 @@ func (b *Board) GetMove(from, to Coord) (Move, error) {
 	if !to.IsValid() {
 		return Move{}, errors.New("invalid to coord")
 	}
-	for _, m := range b.addMoves(from, nil) {
+	for _, m := range b.GetMoves(from) {
 		if m.from != from || m.to != to {
 			continue
 		}
