@@ -1,11 +1,15 @@
 package main
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/kylelemons/godebug/pretty"
 )
+
+func capture(m Move) Move {
+	m.isCapture = true
+	return m
+}
 
 func makeMove(t *testing.T, desc, before, from, to string) (*Board, Move) {
 	t.Helper()
@@ -124,25 +128,54 @@ func TestIsLegalMove(t *testing.T) {
 			false,
 			false,
 		},
-		{
+		{ // Capturing can stop a check.
 			"capture can stop check",
 			"rnb1kbnr/pppp1ppp/8/4p3/5P1q/8/PPPPP1P1/RNBQKBNR w KQkq - 0 3",
 			Move{p: White | Rook, to: coord("h4"), from: coord("h1"), isCapture: true},
 			true,
 			true,
 		},
+		{ // Moving can stop a check.
+			"move can stop check",
+			"rnb1kbnr/pp1ppppp/8/q1p5/5B2/3P4/PPP1PPPP/RN1QKBNR w KQkq - 2 3",
+			Move{p: White | Bishop, to: coord("d2"), from: coord("f4")},
+			true,
+			false,
+		},
+		{ // Can't castle queenside when there's a knight.
+			"can't O-O-O with knight",
+			"r3k2r/8/8/8/8/8/8/RN2K2R b KQkq - 0 1",
+			Move{p: White | King, to: coord("c1"), from: coord("e1")},
+			false,
+			false,
+		},
+		{ // Can't capture into check.
+			"can't capture into check",
+			"r1bqkbnr/1ppppppp/8/p7/1n6/2KP4/PPP1PPPP/RNBQ1BNR w kq - 4 4",
+			Move{p: White | King, to: coord("b4"), from: coord("c3"), isCapture: true},
+			false,
+			true,
+		},
+		{
+			"can castle",
+			"r3k2r/p1ppqpb1/1n2pnp1/1b1PN3/1p2P3/2N2Q1p/PPPBBPPP/1R2K2R w Kkq - 2 2",
+			Move{p: White | King, from: coord("e1"), to: coord("g1")},
+			true,
+			false,
+		},
 	}
 
-	for _, test := range tests {
+	for i, test := range tests {
+		t.Logf("[%d] %s", i, test.desc)
 		b, err := FromFEN(test.fen)
 		if err != nil {
-			t.Errorf("[%s] error creating board: %v", test.desc, err)
+			t.Errorf("[%d] %s error creating board: %v", i, test.desc, err)
 		}
 		if isLegal := b.isLegalMove(&test.move); isLegal != test.isLegal {
-			t.Errorf("[%s] isLegalMove = %t, expected %t", test.desc, isLegal, test.isLegal)
+			t.Errorf("[%d] %s isLegalMove = %t, expected %t", i, test.desc, isLegal, test.isLegal)
 		}
 		if test.move.isCapture != test.isCapture {
-			t.Errorf("[%s] move.isCapture = %t, expected %t", test.desc, test.move.isCapture, test.isCapture)
+			t.Errorf("[%d] %s move.isCapture = %t, expected %t", i, test.desc, test.move.isCapture, test.isCapture)
 		}
 	}
 }
@@ -199,7 +232,7 @@ func TestGetMoves(t *testing.T) {
 		},
 		{
 			"king moves",
-			"k7/8/8/8/8/8/8/R3K2R w - - 0 1",
+			"k7/8/8/8/8/8/8/R3K2R w KQ - 0 1",
 			coord("e1"),
 			toSet([]Move{
 				move(White|King, "e1", "d1", Empty),
@@ -240,9 +273,16 @@ func TestGetMoves(t *testing.T) {
 			coord("h1"),
 			toSet([]Move{move(White|Rook, "h1", "h4", Black|Queen)}),
 		},
+		{
+			"bishop can stop check",
+			"rnb1kbnr/pp1ppppp/8/q1p5/5B2/3P4/PPP1PPPP/RN1QKBNR w KQkq - 2 3",
+			coord("f4"),
+			toSet([]Move{move(White|Bishop, "f4", "d2", Empty)}),
+		},
 	}
 
-	for _, test := range tests {
+	for i, test := range tests {
+		t.Logf("[%d] %s %+v\n", i, test.desc, test.c)
 		b, err := FromFEN(test.fen)
 		if err != nil {
 			t.Fatalf("[%s] error creating board; %v", test.desc, err)
@@ -312,6 +352,12 @@ func TestWouldKingBeInCheck(t *testing.T) {
 			"rook captures queen",
 			"rnb1kbnr/pppp1ppp/8/4p3/5P1q/8/PPPPP1P1/RNBQKBNR w KQkq - 0 3",
 			move(White|Rook, "h1", "h4", true),
+			false,
+		},
+		{
+			"bishop can stop check",
+			"rnb1kbnr/pp1ppppp/8/q1p5/5B2/3P4/PPP1PPPP/RN1QKBNR w KQkq - 2 3",
+			move(White|Bishop, "f4", "d2", false),
 			false,
 		},
 	}
@@ -475,7 +521,7 @@ func TestDoesSquareAttack(t *testing.T) {
 	}{
 		{
 			"rook to rook",
-			"k7/8/8/8/8/r7/R7/K7 w - - 0 1",
+			"k7/8/8/8/8/r7/R7/K7 b - - 0 1",
 			coord("a3"),
 			coord("a2"),
 			true,
@@ -494,7 +540,7 @@ func TestDoesSquareAttack(t *testing.T) {
 		if err != nil {
 			t.Fatalf("[%s] unexpected error: %v", test.desc, err)
 		}
-		if v := b.doesSquareAttack(test.from, test.to); v != test.ex {
+		if v := b.doesSquareAttack(test.from, test.to, b.at(test.from).OppositeColor()); v != test.ex {
 			t.Errorf("[%s] doesSquareAttack(%v, %v) = %v, expected = %v", test.desc, test.from, test.to, v, test.ex)
 		}
 	}
@@ -538,32 +584,107 @@ func TestGetMove(t *testing.T) {
 	}
 }
 
-var moveCounts = []int{20, 400, 8902, 197281, 4865609} //, 119060324}
+func TestPerft(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping perft tests")
+	}
 
-func TestCountMoves(t *testing.T) {
 	/*
-		b := New()
-		for i, target := range moveCounts {
-			t.Logf("%v %v\n", i, target)
-			if cnt := b.Perft(i+1, false); cnt != target {
-				t.Errorf("[%d] wrong move count: %d != %d", i+1, cnt, target)
-				b.Perft(i+1, true)
-			}
+		coord := testingCoordFunc(t)
+		move := func(p Piece, from, to string) Move {
+			return Move{p: p, from: coord(from), to: coord(to)}
 		}
 	*/
+	tests := []struct {
+		desc   string
+		fen    string
+		depth  int
+		target int
+		moves  []Move
+	}{
+		/*
+			{"perft(1)", StartingFEN, 1, 20, nil},
+			{"perft(2)", StartingFEN, 2, 400, nil},
+			{"perft(3)", StartingFEN, 3, 8902, nil},
+			{"perft(4)", StartingFEN, 4, 197281, nil},
+			{"perft(5)", StartingFEN, 5, 4865609, nil},
+			{"perft(6)", StartingFEN, 6, 119060324, nil},
+			{"perft(7)", StartingFEN, 7, 3195901860, nil},
+			{"perft(8)", StartingFEN, 8, 84998978956, nil},
+		*/
+		{"kiwipete(1)", "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1", 1, 48, nil},
+		{"kiwipete(2)", "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1", 2, 2039, nil},
+		{"kiwipete(3)", "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1", 3, 97862, nil},
+		{"kiwipete(4)", "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1", 4, 4085603, nil},
+		{"kiwipete(5)", "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1", 5, 193690690, nil},
+		//{"kiwipete(6)", "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1", 6, 8031647685, nil},
+	}
+
+	for i, test := range tests {
+		t.Logf("[%d] %v should equal %d", i, test.desc, test.target)
+		b, err := FromFEN(test.fen)
+		if err != nil {
+			t.Errorf("[%d] %s FromFEN(%q) = %v", i, test.desc, test.fen, err)
+		}
+		if len(test.moves) != 0 {
+			t.Logf("[%d] %s executing moves %v", i, test.desc, test.moves)
+			for _, move := range test.moves {
+				b.MakeMove(move)
+			}
+		}
+		if cnt := b.Perft(test.depth - len(test.moves)); cnt != test.target {
+			t.Errorf("[%d] %s perft(%v) = %d, expected %d", i, test.desc, b.FENString(), cnt, test.target)
+		}
+	}
+}
+
+func TestPossibleMoves(t *testing.T) {
 	coord := testingCoordFunc(t)
-	b := New()
-	b.MakeMove(Move{p: White | Pawn, from: coord("f2"), to: coord("f4")})
-	b.MakeMove(Move{p: Black | Pawn, from: coord("e7"), to: coord("e5")})
-	b.Print()
-	b.MakeMove(Move{p: White | Pawn, from: coord("h2"), to: coord("h4")})
-	b.Print()
-	b.MakeMove(Move{p: Black | Queen, from: coord("d8"), to: coord("h4"), isCapture: true, captured: White | Pawn})
-	b.Print()
-	fmt.Println(b)
-	fmt.Println(b.Perft(1, true))
-	m := b.PossibleMoves()
-	fmt.Println(len(m), m)
+	move := func(p Piece, from, to string) Move {
+		return Move{p: p, from: coord(from), to: coord(to)}
+	}
+	tests := []struct {
+		desc  string
+		fen   string
+		moves []Move
+	}{
+		{
+			"black block check",
+			"rnbqkbnr/ppp1pppp/8/3p4/Q7/2P5/PP1PPPPP/RNB1KBNR b KQkq - 1 2",
+			[]Move{move(Black|Pawn, "c7", "c6"), move(Black|Pawn, "b7", "b5"), move(Black|Knight, "b8", "c6"),
+				move(Black|Knight, "b8", "d7"), move(Black|Bishop, "c8", "d7"), move(Black|Queen, "d8", "d7")},
+		},
+		{
+			"white block check",
+			"rnb1kbnr/pp1ppppp/8/q1p5/5B2/3P4/PPP1PPPP/RN1QKBNR w KQkq - 2 3",
+			[]Move{move(White|Knight, "b1", "d2"), move(White|Knight, "b1", "c3"), move(White|Pawn, "b2", "b4"),
+				move(White|Pawn, "c2", "c3"), move(White|Queen, "d1", "d2"), move(White|Bishop, "f4", "d2")},
+		},
+	}
+
+	for i, test := range tests {
+		b, err := FromFEN(test.fen)
+		if err != nil {
+			t.Fatalf("[%d] %s bad fen %v", i, test.desc, err)
+		}
+		moves := b.PossibleMoves()
+		if len(moves) != len(test.moves) {
+			t.Logf("%v != %v", moves, test.moves)
+			t.Errorf("[%d] %s, len(moves) = %d, expected %d", i, test.desc, len(moves), len(test.moves))
+		}
+		for _, move := range test.moves {
+			found := false
+			for _, try := range moves {
+				if try == move {
+					found = true
+					break
+				}
+			}
+			if found == false {
+				t.Errorf("[%d] %s move: %v, not found", i, test.desc, move)
+			}
+		}
+	}
 }
 
 func TestPseudoMoves(t *testing.T) {
@@ -611,31 +732,38 @@ func TestCaptureClearsPseudo(t *testing.T) {
 func BenchmarkPerft1(b *testing.B) {
 	board := New()
 	for n := 0; n < b.N; n++ {
-		board.Perft(1, false)
+		board.Perft(1)
 	}
 }
 func BenchmarkPerft2(b *testing.B) {
 	board := New()
 	for n := 0; n < b.N; n++ {
-		board.Perft(2, false)
+		board.Perft(2)
 	}
 }
 func BenchmarkPerft3(b *testing.B) {
 	board := New()
 	for n := 0; n < b.N; n++ {
-		board.Perft(3, false)
+		board.Perft(3)
 	}
 }
 func BenchmarkPerft4(b *testing.B) {
 	board := New()
 	for n := 0; n < b.N; n++ {
-		board.Perft(4, false)
+		board.Perft(4)
 	}
 }
 
 func BenchmarkPerft5(b *testing.B) {
 	board := New()
 	for n := 0; n < b.N; n++ {
-		board.Perft(5, false)
+		board.Perft(5)
+	}
+}
+
+func BenchmarkPerft6(b *testing.B) {
+	board := New()
+	for n := 0; n < b.N; n++ {
+		board.Perft(6)
 	}
 }

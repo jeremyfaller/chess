@@ -9,6 +9,10 @@ import (
 	"unicode"
 )
 
+const (
+	StartingFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+)
+
 type Spaces [64]Piece
 type PsuedoMoves [64]Bit
 type Hash uint64
@@ -187,7 +191,7 @@ func (b *Board) FENString() string {
 		empty = 0
 	}
 
-	// Print the board
+	// Print the board.
 	for y := 7; y >= 0; y-- {
 		for x := 0; x <= 7; x++ {
 			c := Coord{x, y}
@@ -261,17 +265,11 @@ func (b *Board) setCheck(p Piece, v bool) {
 }
 
 // doesSquareAttack returns true if a given square attacks another one.
-
 // if the square is definitely attacked.
-func (b *Board) doesSquareAttack(from, to Coord) bool {
+func (b *Board) doesSquareAttack(from, to Coord, color Piece) bool {
 	p := b.at(from)
 	// If there's no piece at the attacking square, clearly no.
 	if p == Empty {
-		return false
-	}
-
-	// Check that the colors are different.
-	if b.at(to).Color() == p.Color() {
 		return false
 	}
 
@@ -310,7 +308,7 @@ func (b *Board) isSquareAttacked(c Coord, color Piece) bool {
 	}
 
 	for _, at := range b.PseudoMoves(color).Attackers(c) {
-		if b.doesSquareAttack(at, c) {
+		if b.doesSquareAttack(at, c, color) {
 			return true
 		}
 	}
@@ -321,13 +319,15 @@ func (b *Board) isSquareAttacked(c Coord, color Piece) bool {
 func (b *Board) wouldKingBeInCheck(m *Move) bool {
 	// If the king's not in check, and none of the pieces that attack the from
 	// square also attack the king, the move will not result in a check.
-	isInCheck := b.IsKingInCheck(m.p)
-	kloc := b.KingLoc(m.p)
-	attacked := b.PseudoMoves(m.p.OppositeColor())
-	bits := attacked[kloc.Idx()] & attacked[m.from.Idx()]
-	if !isInCheck && bits == 0 {
-		return false
-	}
+	/*
+		isInCheck := b.IsKingInCheck(m.p)
+		kloc := b.KingLoc(m.p)
+		attacked := b.PseudoMoves(m.p.OppositeColor())
+		bits := attacked[kloc.Idx()] & attacked[m.from.Idx()]
+		if !isInCheck && bits == 0 {
+			return false
+		}
+	*/
 
 	// So, if the king was in check, we need to see if we would block the
 	// check, or take the checking piece.
@@ -359,6 +359,22 @@ func (b *Board) isLegalMove(m *Move) bool {
 		}
 
 		if m.IsCastle() {
+			if m.p.Color() == White {
+				if m.IsKingsideCastle() && !b.wOO {
+					return false
+				}
+				if m.IsQueensideCastle() && !b.wOOO {
+					return false
+				}
+			} else {
+				if m.IsKingsideCastle() && !b.bOO {
+					return false
+				}
+				if m.IsQueensideCastle() && !b.bOOO {
+					return false
+				}
+			}
+
 			// Can't castle out of check.
 			if b.IsKingInCheck(m.p) {
 				return false
@@ -369,6 +385,11 @@ func (b *Board) isLegalMove(m *Move) bool {
 			// Can't castle across or into non-empty squares.
 			if p2 != Empty || b.at(mid) != Empty {
 				return false
+			}
+			if m.IsQueensideCastle() { // also check on knight for O-O-O.
+				if b.at(Coord{m.to.x - 1, m.to.y}) != Empty {
+					return false
+				}
 			}
 
 			// Can't castle across a square in check.
@@ -447,6 +468,11 @@ func (b *Board) GetMoves(c Coord) (moves []Move) {
 				break
 			}
 
+			// If we'd overlap one our own pieces, no need to check further.
+			if b.at(toPos).Color() == p.Color() {
+				break
+			}
+
 			move := Move{
 				p:    p,
 				to:   toPos,
@@ -454,14 +480,13 @@ func (b *Board) GetMoves(c Coord) (moves []Move) {
 			}
 			lastPos = toPos
 
-			// Check to see if the move is leagl. If the move isn't legal, we
-			// might be done.
+			// If the move would be illegal, we keep checking as a different move in
+			// this direction might be legal.
 			if !b.isLegalMove(&move) {
-				if !b.IsKingInCheck(p) {
-					break
-				}
-				if b.wouldKingBeInCheck(&move) {
+				if b.at(toPos) == Empty {
 					continue
+				} else {
+					break
 				}
 			}
 
@@ -697,20 +722,32 @@ func (b *Board) GetMove(from, to Coord) (Move, error) {
 	return Move{}, fmt.Errorf("invalid move: %v", Move{from: from, to: to})
 }
 
-// Perft calcualtes the number of possible moves at a given depth. It's quite
+// Perft calculates the number of possible moves at a given depth. It's quite
 // helpful debugging the move generation. Optionally, Perft will also print the
 // number of reachable moves for each valid move in the given board state.
-func (b Board) Perft(depth int, showMoves bool) int {
-	var perft func(int, bool) int
-
-	perft = func(d int, s bool) int {
+func (board Board) Perft(depth int) int {
+	var perft func(Board, int, bool) int
+	perft = func(b Board, d int, s bool) int {
 		if d == 0 {
 			return 1
 		}
+
+		// Exit early.
+		moves := b.PossibleMoves()
+		if d == 1 {
+			if s {
+				for _, m := range moves {
+					fmt.Printf("%v: 1\n", m)
+				}
+			}
+			return len(moves)
+		}
+
+		// Haven't seen this position before, need to calculate it.
 		total := 0
-		for _, move := range b.PossibleMoves() {
+		for _, move := range moves {
 			b.MakeMove(move)
-			cnt := perft(d-1, false)
+			cnt := perft(b, d-1, false)
 			if s {
 				fmt.Printf("%v: %d\n", move, cnt)
 			}
@@ -719,7 +756,8 @@ func (b Board) Perft(depth int, showMoves bool) int {
 		}
 		return total
 	}
-	return perft(depth, showMoves)
+
+	return perft(board, depth, true)
 }
 
 // EmptyBoard returns a new, empty board. No state of gameplay is set up.

@@ -47,6 +47,9 @@ func (p Piece) Colorless() Piece {
 }
 
 func (p Piece) String() string {
+	if p == Empty {
+		return " "
+	}
 	printer := strings.ToUpper
 	if p.IsBlack() {
 		printer = strings.ToLower
@@ -65,7 +68,10 @@ func (p Piece) String() string {
 	case King:
 		return printer("K")
 	}
-	return " "
+	if p.Color() == White {
+		return "WHITE"
+	}
+	return "BLACK"
 }
 
 func (p Piece) IsEmpty() bool {
@@ -88,18 +94,31 @@ func (p Piece) Score() int {
 	return scores[p]
 }
 
+var (
+	kingAttackDir      = []Dir{N, NE, E, SE, S, SW, W, NW}
+	kingDir            = []Dir{N, NE, E, E2, SE, S, SW, W, W2, NW}
+	queenDir           = []Dir{N, NE, E, SE, S, SW, W, NW}
+	rookDir            = []Dir{N, E, S, W}
+	bishopDir          = []Dir{NE, SE, SW, NW}
+	knightDir          = []Dir{NNE, NEE, SEE, SSE, SSW, SWW, NWW, NNW}
+	whitePawnDir       = []Dir{N, NN, NE, NW}
+	whitePawnAttackDir = []Dir{NE, NW}
+	blackPawnDir       = []Dir{S, SS, SE, SW}
+	blackPawnAttackDir = []Dir{SE, SW}
+)
+
 // Attack dir returns a slice of Dir in which a Piece attacks.
 func (p Piece) AttackDir() []Dir {
 	switch p.Colorless() {
 	case Queen, Rook, Bishop, Knight:
 		return p.MoveDir()
 	case King:
-		return []Dir{N, NE, E, SE, S, SW, W, NW}
+		return kingAttackDir
 	case Pawn:
 		if p.Color() == White {
-			return []Dir{NE, NW}
+			return whitePawnAttackDir
 		} else {
-			return []Dir{SE, SW}
+			return blackPawnAttackDir
 		}
 	}
 	panic("direction not set up for piece " + p.String())
@@ -109,21 +128,21 @@ func (p Piece) AttackDir() []Dir {
 func (p Piece) MoveDir() []Dir {
 	switch p.Colorless() {
 	case Queen:
-		return []Dir{N, NE, E, SE, S, SW, W, NW}
+		return queenDir
 	case King:
-		return []Dir{N, NE, E, E2, SE, S, SW, W, W2, NW}
+		return kingDir
 	case Rook:
-		return []Dir{N, E, S, W}
+		return rookDir
 	case Bishop:
-		return []Dir{NE, SE, SW, NW}
+		return bishopDir
 	case Pawn:
 		if p.Color() == White {
-			return []Dir{N, NN, NE, NW}
+			return whitePawnDir
 		} else {
-			return []Dir{S, SS, SE, SW}
+			return blackPawnDir
 		}
 	case Knight:
-		return []Dir{NNE, NEE, SEE, SSE, SSW, SWW, NWW, NNW}
+		return knightDir
 	}
 	panic("direction not set up for piece " + p.String())
 }

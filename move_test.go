@@ -30,6 +30,50 @@ func TestIsCastle(t *testing.T) {
 	}
 }
 
+func TestIsKingsideCastle(t *testing.T) {
+	coord := testingCoordFunc(t)
+	tests := []struct {
+		desc string
+		m    Move
+		is   bool
+	}{
+		{"white pawn", Move{p: White | Pawn, from: coord("a2"), to: coord("a4")}, false},
+		{"white king move", Move{p: White | King, from: coord("e1"), to: coord("e2")}, false},
+		{"white king castle", Move{p: White | King, from: coord("e1"), to: coord("g1")}, true},
+		{"black king castle", Move{p: Black | King, from: coord("e1"), to: coord("g1")}, true},
+		{"white queen castle", Move{p: White | King, from: coord("e1"), to: coord("c1")}, false},
+		{"black queen castle", Move{p: Black | King, from: coord("e1"), to: coord("c1")}, false},
+	}
+
+	for i, test := range tests {
+		if test.m.IsKingsideCastle() != test.is {
+			t.Errorf("[%d] %v IsKingsideCastle = %v, expected %v", i, test.desc, !test.is, test.is)
+		}
+	}
+}
+
+func TestIsQueensideCastle(t *testing.T) {
+	coord := testingCoordFunc(t)
+	tests := []struct {
+		desc string
+		m    Move
+		is   bool
+	}{
+		{"white pawn", Move{p: White | Pawn, from: coord("a2"), to: coord("a4")}, false},
+		{"white king move", Move{p: White | King, from: coord("e1"), to: coord("e2")}, false},
+		{"white king castle", Move{p: White | King, from: coord("e1"), to: coord("g1")}, false},
+		{"black king castle", Move{p: Black | King, from: coord("e1"), to: coord("g1")}, false},
+		{"white queen castle", Move{p: White | King, from: coord("e1"), to: coord("c1")}, true},
+		{"black queen castle", Move{p: Black | King, from: coord("e1"), to: coord("c1")}, true},
+	}
+
+	for i, test := range tests {
+		if test.m.IsQueensideCastle() != test.is {
+			t.Errorf("[%d] %v IsQueensideCastle = %v, expected %v", i, test.desc, !test.is, test.is)
+		}
+	}
+}
+
 func TestIsPromotion(t *testing.T) {
 	coord := testingCoordFunc(t)
 	tests := []struct {

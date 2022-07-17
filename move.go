@@ -44,6 +44,22 @@ func (m *Move) IsCastle() bool {
 	return xDist == 2 || xDist == -2
 }
 
+// IsKingsideCastle returns true if a Move is a king side castle.
+func (m *Move) IsKingsideCastle() bool {
+	if !m.IsCastle() {
+		return false
+	}
+	return m.to.x > m.from.x
+}
+
+// IsQueensideCastle returns true if a Move is a queen side castle.
+func (m *Move) IsQueensideCastle() bool {
+	if !m.IsCastle() {
+		return false
+	}
+	return m.to.x < m.from.x
+}
+
 // CastleMidCoord returns the Coord for the middle of a castling move.
 func (m *Move) CastleMidCoord() Coord {
 	if !m.IsCastle() {
@@ -89,7 +105,7 @@ func (m Move) algebraicString() string {
 	}
 	var capString string
 	if m.isCapture {
-		capString = "x"
+		//capString = "x"
 	}
 	return fmt.Sprintf("%s%s%s", m.from.String(), capString, m.to.String())
 }
