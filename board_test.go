@@ -760,10 +760,3 @@ func BenchmarkPerft5(b *testing.B) {
 		board.Perft(5)
 	}
 }
-
-func BenchmarkPerft6(b *testing.B) {
-	board := New()
-	for n := 0; n < b.N; n++ {
-		board.Perft(6)
-	}
-}
