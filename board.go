@@ -79,19 +79,23 @@ func (m *PsuedoMoves) countZeros() (total int) {
 	return total
 }
 
+// BoardState contains the state of the board that's Undoable.
+type BoardState struct {
+	turn                 Piece // Whose turn is it?
+	wOO, wOOO, bOO, bOOO bool  // Can the white/black king castle kingside/queenside?
+	wkLoc, bkLoc         Coord // Where are the kings located?
+	fullMove, halfMove   int
+	epTarget             Coord
+	hash                 Hash
+}
+
 type Board struct {
-	spaces    Spaces
-	hash      Hash
-	epTarget  Coord
-	turn      Piece
-	wOO, wOOO bool // can white castle kingside/queenside?
-	bOO, bOOO bool // can black castle kingside/queenside?
-	halfMove  int
-	fullMove  int
-	moves     []Move
+	spaces   Spaces
+	state    BoardState
+	moves    []Move
+	oldState []BoardState
 
 	// State of the kings.
-	wkLoc, bkLoc       Coord
 	isWCheck, isBCheck bool
 
 	// Bitfields stating if white or black attack a given square.
@@ -112,15 +116,15 @@ func (b *Board) set(p Piece, c Coord) {
 		hashP = b.at(c)
 	}
 	if hashP != Empty {
-		b.hash ^= zLookups[hashP.HashIdx()*idx]
+		b.state.hash ^= zLookups[hashP.HashIdx()*idx]
 	}
 
 	// Update the king's location.
 	if p.Colorless() == King {
 		if p.Color() == White {
-			b.wkLoc = c
+			b.state.wkLoc = c
 		} else {
-			b.bkLoc = c
+			b.state.bkLoc = c
 		}
 	}
 	if p == Empty {
@@ -134,7 +138,7 @@ func (b *Board) set(p Piece, c Coord) {
 
 // ZHash returns the Zobrist hash for this board state.
 func (b *Board) ZHash() Hash {
-	return b.hash
+	return b.state.hash
 }
 
 // Print pretty-prints a board on standard out.
@@ -152,19 +156,19 @@ func (b *Board) Print() {
 func (b *Board) castleString() string {
 	var s string
 	canCastle := false
-	if b.wOO {
+	if b.state.wOO {
 		canCastle = true
 		s += "K"
 	}
-	if b.wOOO {
+	if b.state.wOOO {
 		canCastle = true
 		s += "Q"
 	}
-	if b.bOO {
+	if b.state.bOO {
 		canCastle = true
 		s += "k"
 	}
-	if b.bOOO {
+	if b.state.bOOO {
 		canCastle = true
 		s += "q"
 	}
@@ -211,7 +215,7 @@ func (b *Board) FENString() string {
 	s += " "
 
 	// Print the turn
-	if b.turn == White {
+	if b.state.turn == White {
 		s += "w "
 	} else {
 		s += "b "
@@ -221,7 +225,7 @@ func (b *Board) FENString() string {
 	s += b.castleString() + " "
 
 	// Print the rest.
-	s += fmt.Sprintf("%v %d %d", b.epTarget, b.halfMove, b.fullMove)
+	s += fmt.Sprintf("%v %d %d", b.state.epTarget, b.state.halfMove, b.state.fullMove)
 	return s
 }
 
@@ -250,9 +254,9 @@ func (b *Board) IsKingInCheck(p Piece) bool {
 // KingLoc returns the king location for the given piece's color.
 func (b *Board) KingLoc(p Piece) Coord {
 	if p.Color() == White {
-		return b.wkLoc
+		return b.state.wkLoc
 	}
-	return b.bkLoc
+	return b.state.bkLoc
 }
 
 // setCheck sets the check state.
@@ -317,18 +321,6 @@ func (b *Board) isSquareAttacked(c Coord, color Piece) bool {
 
 // wouldKingBeInCheck returns true if a move would result in an illegal check.
 func (b *Board) wouldKingBeInCheck(m *Move) bool {
-	// If the king's not in check, and none of the pieces that attack the from
-	// square also attack the king, the move will not result in a check.
-	/*
-		isInCheck := b.IsKingInCheck(m.p)
-		kloc := b.KingLoc(m.p)
-		attacked := b.PseudoMoves(m.p.OppositeColor())
-		bits := attacked[kloc.Idx()] & attacked[m.from.Idx()]
-		if !isInCheck && bits == 0 {
-			return false
-		}
-	*/
-
 	// So, if the king was in check, we need to see if we would block the
 	// check, or take the checking piece.
 	b.MakeMove(*m)
@@ -360,17 +352,17 @@ func (b *Board) isLegalMove(m *Move) bool {
 
 		if m.IsCastle() {
 			if m.p.Color() == White {
-				if m.IsKingsideCastle() && !b.wOO {
+				if m.IsKingsideCastle() && !b.state.wOO {
 					return false
 				}
-				if m.IsQueensideCastle() && !b.wOOO {
+				if m.IsQueensideCastle() && !b.state.wOOO {
 					return false
 				}
 			} else {
-				if m.IsKingsideCastle() && !b.bOO {
+				if m.IsKingsideCastle() && !b.state.bOO {
 					return false
 				}
-				if m.IsQueensideCastle() && !b.bOOO {
+				if m.IsQueensideCastle() && !b.state.bOOO {
 					return false
 				}
 			}
@@ -422,7 +414,7 @@ func (b *Board) isLegalMove(m *Move) bool {
 			}
 		} else if p2 == Empty {
 			// Otherwise captures that are empty must be en passant
-			if m.to != b.epTarget {
+			if m.to != b.state.epTarget {
 				return false
 			}
 			m.isEnPassant = true
@@ -453,7 +445,7 @@ func (b *Board) isLegalMove(m *Move) bool {
 }
 
 // GetMoves returns all moves for a given coordinate.
-func (b *Board) GetMoves(c Coord) (moves []Move) {
+func (b *Board) GetMoves(moves []Move, c Coord) []Move {
 	p := b.at(c)
 	if p.IsEmpty() {
 		return moves
@@ -509,18 +501,17 @@ func (b *Board) GetMoves(c Coord) (moves []Move) {
 }
 
 // PossibleMoves returns a slice of the possible moves for a given Board.
-func (b *Board) PossibleMoves() []Move {
-	moves := []Move{}
+func (b *Board) PossibleMoves(moves []Move) []Move {
 	for p := 0; p < 64; p++ {
 		c := CoordFromIdx(p)
 		p := b.at(c)
 		if p.IsEmpty() { // no piece, skip
 			continue
 		}
-		if p.Color() != b.turn { // not the color we want, skip
+		if p.Color() != b.state.turn { // not the color we want, skip
 			continue
 		}
-		moves = append(moves, b.GetMoves(c)...)
+		moves = b.GetMoves(moves, c)
 	}
 	return moves
 }
@@ -545,31 +536,31 @@ func (b *Board) handleRookMoveOrCapture(c Coord) {
 
 	if p.IsWhite() && c.y == 0 {
 		if c.x == 0 {
-			b.wOOO = false
+			b.state.wOOO = false
 		} else if c.x == 7 {
-			b.wOO = false
+			b.state.wOO = false
 		}
 	} else if p.IsBlack() && c.y == 7 {
 		if c.x == 0 {
-			b.bOOO = false
+			b.state.bOOO = false
 		} else if c.x == 7 {
-			b.bOO = false
+			b.state.bOO = false
 		}
 	}
 }
 
 // zCastle returns the Zobrist hash for the given castle state.
 func (b *Board) zCastle() (v Hash) {
-	if b.wOO {
+	if b.state.wOO {
 		v ^= zWOO
 	}
-	if b.wOOO {
+	if b.state.wOOO {
 		v ^= zWOOO
 	}
-	if b.bOO {
+	if b.state.bOO {
 		v ^= zBOO
 	}
-	if b.bOOO {
+	if b.state.bOOO {
 		v ^= zBOOO
 	}
 	return v
@@ -577,29 +568,29 @@ func (b *Board) zCastle() (v Hash) {
 
 // updateCastleState updates the castling state for a given move.
 func (b *Board) updateCastleState(m Move) {
-	b.hash ^= b.zCastle()
+	b.state.hash ^= b.zCastle()
 	// If we're moving a king, we can't castle anymore.
 	if m.p.IsKing() {
 		if m.p.IsWhite() {
-			b.wOO, b.wOOO = false, false
+			b.state.wOO, b.state.wOOO = false, false
 		} else {
-			b.bOO, b.bOOO = false, false
+			b.state.bOO, b.state.bOOO = false, false
 		}
 	}
 
 	// If we're moving or capturing a rook, update the state.
 	b.handleRookMoveOrCapture(m.from)
 	b.handleRookMoveOrCapture(m.to)
-	b.hash ^= b.zCastle()
+	b.state.hash ^= b.zCastle()
 }
 
 func (b *Board) updateEPTarget(m Move) {
-	if b.epTarget != InvalidCoord {
-		b.hash ^= zLookups[zEP+b.epTarget.FileIdx()]
+	if b.state.epTarget != InvalidCoord {
+		b.state.hash ^= zLookups[zEP+b.state.epTarget.FileIdx()]
 	}
-	b.epTarget = epTarget(m)
-	if b.epTarget != InvalidCoord {
-		b.hash ^= zLookups[zEP+b.epTarget.FileIdx()]
+	b.state.epTarget = epTarget(m)
+	if b.state.epTarget != InvalidCoord {
+		b.state.hash ^= zLookups[zEP+b.state.epTarget.FileIdx()]
 	}
 }
 
@@ -612,21 +603,19 @@ func (b *Board) updateChecks() {
 // MakeMove applies the move, and updates all necessary Board state.
 func (b *Board) MakeMove(m Move) {
 	// Save some state so we can undo the move if asked.
-	m.prevHash = b.hash
-	m.prevEP, m.prevFull, m.prevHalf = b.epTarget, b.fullMove, b.halfMove
-	m.prevWOO, m.prevWOOO, m.prevBOO, m.prevBOOO = b.wOO, b.wOOO, b.bOO, b.bOOO
+	b.oldState = append(b.oldState, b.state)
 
 	// Update turn variables, and board state.
-	b.hash ^= zLookups[zBlack]
-	if b.turn == White {
-		b.turn = Black
+	b.state.hash ^= zLookups[zBlack]
+	if b.state.turn == White {
+		b.state.turn = Black
 	} else {
-		b.fullMove += 1
-		b.turn = White
+		b.state.fullMove += 1
+		b.state.turn = White
 	}
-	b.halfMove += 1
+	b.state.halfMove += 1
 	if m.p.IsPawn() || m.isCapture {
-		b.halfMove = 0
+		b.state.halfMove = 0
 	}
 	b.updateCastleState(m)
 	b.updateEPTarget(m)
@@ -678,10 +667,8 @@ func (b *Board) UnmakeMove() {
 	b.moves = b.moves[:len(b.moves)-1]
 
 	// Fix game state.
-	b.turn = m.p.Color()
-	b.fullMove, b.halfMove = m.prevFull, m.prevHalf
-	b.epTarget = m.prevEP
-	b.wOO, b.wOOO, b.bOO, b.bOOO = m.prevWOO, m.prevWOOO, m.prevBOO, m.prevBOOO
+	b.state = b.oldState[len(b.oldState)-1]
+	b.oldState = b.oldState[:len(b.oldState)-1]
 
 	// And fix board state.
 	b.set(Empty, m.to)
@@ -700,7 +687,6 @@ func (b *Board) UnmakeMove() {
 		b.set(Empty, m.CastleMidCoord())
 		b.set(m.p.Color()|Rook, m.RookCoord())
 	}
-	b.hash = m.prevHash
 
 	b.updateChecks()
 }
@@ -713,7 +699,7 @@ func (b *Board) GetMove(from, to Coord) (Move, error) {
 	if !to.IsValid() {
 		return Move{}, errors.New("invalid to coord")
 	}
-	for _, m := range b.GetMoves(from) {
+	for _, m := range b.GetMoves(nil, from) {
 		if m.from != from || m.to != to {
 			continue
 		}
@@ -725,15 +711,18 @@ func (b *Board) GetMove(from, to Coord) (Move, error) {
 // Perft calculates the number of possible moves at a given depth. It's quite
 // helpful debugging the move generation. Optionally, Perft will also print the
 // number of reachable moves for each valid move in the given board state.
-func (board Board) Perft(depth int) int {
-	var perft func(Board, int, bool) int
-	perft = func(b Board, d int, s bool) int {
+func (b *Board) Perft(origDepth int) int {
+	moveQueue := make([][]Move, origDepth)
+
+	var perft func(int, bool) int
+	perft = func(d int, s bool) int {
 		if d == 0 {
 			return 1
 		}
 
 		// Exit early.
-		moves := b.PossibleMoves()
+		moves := moveQueue[origDepth-d][:0]
+		moves = b.PossibleMoves(moves)
 		if d == 1 {
 			if s {
 				for _, m := range moves {
@@ -747,7 +736,7 @@ func (board Board) Perft(depth int) int {
 		total := 0
 		for _, move := range moves {
 			b.MakeMove(move)
-			cnt := perft(b, d-1, false)
+			cnt := perft(d-1, false)
 			if s {
 				fmt.Printf("%v: %d\n", move, cnt)
 			}
@@ -757,27 +746,29 @@ func (board Board) Perft(depth int) int {
 		return total
 	}
 
-	return perft(board, depth, true)
+	return perft(origDepth, false)
 }
 
 // EmptyBoard returns a new, empty board. No state of gameplay is set up.
 func EmptyBoard() *Board {
 	return &Board{
-		epTarget: InvalidCoord,
-		fullMove: 1,
-		wkLoc:    InvalidCoord,
-		bkLoc:    InvalidCoord,
+		state: BoardState{
+			epTarget: InvalidCoord,
+			wkLoc:    InvalidCoord,
+			bkLoc:    InvalidCoord,
+			fullMove: 1,
+		},
 	}
 }
 
 // New returns a new Board, set up for play (ie a new chess game).
 func New() *Board {
 	b := EmptyBoard()
-	b.turn = White
-	b.wOO = true
-	b.wOOO = true
-	b.bOO = true
-	b.bOOO = true
+	b.state.turn = White
+	b.state.wOO = true
+	b.state.wOOO = true
+	b.state.bOO = true
+	b.state.bOOO = true
 	pieces := []Piece{Rook, Knight, Bishop, Queen, King, Bishop, Knight, Rook}
 	for x, p := range pieces {
 		b.set(p|White, Coord{x, 0})
@@ -804,10 +795,10 @@ var runeToPiece = map[rune]Piece{
 }
 
 func (b *Board) validate() error {
-	if b.wkLoc == InvalidCoord {
+	if b.state.wkLoc == InvalidCoord {
 		return errors.New("no white king on board")
 	}
-	if b.bkLoc == InvalidCoord {
+	if b.state.bkLoc == InvalidCoord {
 		return errors.New("no black king on board")
 	}
 	return nil
@@ -843,22 +834,22 @@ func FromFEN(s string) (*Board, error) {
 	}
 
 	// Parse turn.
-	b.turn = White
+	b.state.turn = White
 	if parts[1] == "b" {
-		b.turn = Black
+		b.state.turn = Black
 	}
 
 	// Parse Castling.
 	for _, c := range parts[2] {
 		switch c {
 		case 'K':
-			b.wOO = true
+			b.state.wOO = true
 		case 'Q':
-			b.wOOO = true
+			b.state.wOOO = true
 		case 'k':
-			b.bOO = true
+			b.state.bOO = true
 		case 'q':
-			b.bOOO = true
+			b.state.bOOO = true
 		case '-':
 			continue
 		default:
@@ -870,7 +861,7 @@ func FromFEN(s string) (*Board, error) {
 	if target, err := CoordFromString(parts[3]); err != nil {
 		return nil, fmt.Errorf("error parsing en passant target: %w", err)
 	} else {
-		b.epTarget = target
+		b.state.epTarget = target
 	}
 
 	// Parse the half move.
@@ -879,7 +870,7 @@ func FromFEN(s string) (*Board, error) {
 	} else if m < 0 {
 		return nil, fmt.Errorf("halfmove < 0: %d", m)
 	} else {
-		b.halfMove = m
+		b.state.halfMove = m
 	}
 
 	// Parse the full move.
@@ -888,7 +879,7 @@ func FromFEN(s string) (*Board, error) {
 	} else if m < 1 {
 		return nil, fmt.Errorf("fullmove < 1: %d", m)
 	} else {
-		b.fullMove = m
+		b.state.fullMove = m
 	}
 
 	if err := b.validate(); err != nil {

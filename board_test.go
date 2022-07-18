@@ -287,7 +287,7 @@ func TestGetMoves(t *testing.T) {
 		if err != nil {
 			t.Fatalf("[%s] error creating board; %v", test.desc, err)
 		}
-		moves := toSet(b.GetMoves(test.c))
+		moves := toSet(b.GetMoves(nil, test.c))
 		if diff := pretty.Compare(test.moves, moves); diff != "" {
 			t.Logf("%v\n", test.moves)
 			t.Logf("%v\n", moves)
@@ -667,7 +667,7 @@ func TestPossibleMoves(t *testing.T) {
 		if err != nil {
 			t.Fatalf("[%d] %s bad fen %v", i, test.desc, err)
 		}
-		moves := b.PossibleMoves()
+		moves := b.PossibleMoves(nil)
 		if len(moves) != len(test.moves) {
 			t.Logf("%v != %v", moves, test.moves)
 			t.Errorf("[%d] %s, len(moves) = %d, expected %d", i, test.desc, len(moves), len(test.moves))

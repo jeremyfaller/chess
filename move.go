@@ -10,12 +10,7 @@ type Move struct {
 	promotion   Piece
 
 	// State for unwinding a move
-	captured           Piece
-	prevEP             Coord
-	prevFull, prevHalf int
-	prevWOO, prevWOOO  bool
-	prevBOO, prevBOOO  bool
-	prevHash           Hash
+	captured Piece
 }
 
 // Color returns the color of the move.

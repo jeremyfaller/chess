@@ -2,14 +2,18 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"os"
+	"runtime"
 	"runtime/pprof"
+	"runtime/trace"
 )
 
 var (
-	cpuProfile = flag.String("cpuprofile", "", "filename where we should write the cpu profile")
-	memProfile = flag.String("memprofile", "", "filename where we should write the mem profile")
+	cpuProfile   = flag.String("cpuprofile", "", "filename where we should write the cpu profile")
+	memProfile   = flag.String("memprofile", "", "filename where we should write the mem profile")
+	traceProfile = flag.String("traceprofile", "", "filename where we should write trace output")
 )
 
 func main() {
@@ -22,7 +26,6 @@ func main() {
 		pprof.StartCPUProfile(f)
 		defer pprof.StopCPUProfile()
 	}
-	println(*memProfile, flag.NFlag())
 	if len(*memProfile) != 0 {
 		f, err := os.Create(*memProfile)
 		if err != nil {
@@ -30,6 +33,20 @@ func main() {
 		}
 		defer pprof.WriteHeapProfile(f)
 	}
+	if len(*traceProfile) != 0 {
+		f, err := os.Create(*traceProfile)
+		if err != nil {
+			log.Fatal(err)
+		}
+		trace.Start(f)
+		defer trace.Stop()
+	}
 	b := New()
-	b.Perft(5)
+
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+	fmt.Printf("%+v\n", m)
+	fmt.Println("perft(5) =", b.Perft(5))
+	runtime.ReadMemStats(&m)
+	fmt.Printf("%+v\n", m)
 }
