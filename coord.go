@@ -13,7 +13,7 @@ var UnknownDir = errors.New("bad dir")
 
 type Bit uint64
 
-func (b Bit) Attackers() []Coord {
+func coordsFromBit(b Bit) []Coord {
 	ret := make([]Coord, 0, bits.OnesCount64(uint64(b)))
 	for i := 0; i < 64; i++ {
 		sq := Bit(1) << i

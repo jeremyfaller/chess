@@ -501,7 +501,7 @@ func TestAttackers(t *testing.T) {
 		}
 		for i := 0; i < 64; i++ {
 			c := CoordFromIdx(i)
-			if at := a.Attackers(c); len(at) == 1 && at[0] == test.c {
+			if at := coordsFromBit(a.Attackers(c)); len(at) == 1 && at[0] == test.c {
 				delete(attacked, c)
 			}
 		}
@@ -724,7 +724,7 @@ func TestCaptureClearsPseudo(t *testing.T) {
 	b.MakeMove(Move{p: White | Pawn, from: coord("c2"), to: coord("c4")})
 	b.MakeMove(Move{p: Black | Pawn, from: coord("d7"), to: coord("d5")})
 	b.MakeMove(Move{p: White | Pawn, from: coord("c4"), to: coord("d5"), isCapture: true, captured: Black | Pawn})
-	if l := b.PseudoMoves(White).Attackers(coord("d5")); len(l) != 0 {
+	if l := coordsFromBit(b.PseudoMoves(White).Attackers(coord("d5"))); len(l) != 0 {
 		t.Errorf("no white pieces should be attacking: %v", l)
 	}
 }

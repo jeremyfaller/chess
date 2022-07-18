@@ -58,8 +58,8 @@ func (a *PsuedoMoves) PossibleMove(from, to Coord) bool {
 }
 
 // Attackers returns a slice of Coord for all attacking squares.
-func (a *PsuedoMoves) Attackers(c Coord) []Coord {
-	return a[c.Idx()].Attackers()
+func (a *PsuedoMoves) Attackers(c Coord) Bit {
+	return a[c.Idx()]
 }
 
 func (a PsuedoMoves) String() string {
@@ -311,9 +311,13 @@ func (b *Board) isSquareAttacked(c Coord, color Piece) bool {
 		return false
 	}
 
-	for _, at := range b.PseudoMoves(color).Attackers(c) {
-		if b.doesSquareAttack(at, c, color) {
-			return true
+	at := b.PseudoMoves(color).Attackers(c)
+	for i := 0; i < 64; i++ {
+		t := Bit(1) << i
+		if at&t != 0 {
+			if b.doesSquareAttack(CoordFromBit(t), c, color) {
+				return true
+			}
 		}
 	}
 	return false
