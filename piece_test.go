@@ -27,3 +27,20 @@ func TestHashIdx(t *testing.T) {
 		}
 	}
 }
+
+func TestPieceScore(t *testing.T) {
+	// Test that all reasonable piece values have a score.
+	for _, p := range []Piece{Empty, Pawn, Rook, Bishop, Knight, Queen, King} {
+		if p != Empty && p.Score() == 0 {
+			t.Errorf("%s.Score() == %d, expected != 0", p, p.Score())
+		}
+		// White should be positive.
+		if p.Score() != (p | White).Score() {
+			t.Errorf("%s.Score() = %d, expected %d", (p | White), (p | White).Score(), p.Score())
+		}
+		// And black is negative.
+		if -p.Score() != (p | Black).Score() {
+			t.Errorf("%s.Score() = %d, expected %d", (p | Black), (p | Black).Score(), -p.Score())
+		}
+	}
+}

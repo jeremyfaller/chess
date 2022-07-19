@@ -19,19 +19,30 @@ const (
 	Black        = 16
 )
 
-var scores = map[Piece]int{
-	White | Pawn:   100,
-	White | King:   int(^uint(0) >> 1),
-	White | Queen:  900,
-	White | Knight: 300,
-	White | Bishop: 300,
-	White | Rook:   500,
-	Black | Pawn:   -100,
-	Black | King:   -int(^uint(0) >> 1),
-	Black | Queen:  -900,
-	Black | Knight: -300,
-	Black | Bishop: -300,
-	Black | Rook:   -500,
+var scores = []int{
+	0,       // Empty
+	100,     // Pawn
+	300,     // Knight
+	300,     // Bishop
+	500,     // Rook
+	900,     // Queen
+	100000,  // King
+	0,       // Unused
+	0,       // White|Empty
+	100,     // White|Pawn
+	300,     // White|Knight
+	300,     // White|Bishop
+	500,     // White|Rook
+	900,     // White|Queen
+	100000,  // White|King
+	0,       // Unused
+	0,       // Black|Empty
+	-100,    // Black|Pawn
+	-300,    // Black|Knight
+	-300,    // Black|Bishop
+	-500,    // Black|Rook
+	-900,    // Black|Queen
+	-100000, // Black|King
 }
 
 func (p Piece) IsWhite() bool {

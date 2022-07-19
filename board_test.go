@@ -729,6 +729,27 @@ func TestCaptureClearsPseudo(t *testing.T) {
 	}
 }
 
+func TestSimpleScore(t *testing.T) {
+	tests := []struct {
+		desc  string
+		fen   string
+		score int
+	}{
+		{"black missing rook", "1nbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", scores[White|Rook]},
+		{"white missing rook", "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/1NBQKBNR w KQkq - 0 1", scores[Black|Rook]},
+	}
+
+	for i, test := range tests {
+		b, err := FromFEN(test.fen)
+		if err != nil {
+			t.Errorf("[%d] %s error making board", i, test.desc)
+		}
+		if b.state.score != test.score {
+			t.Errorf("[%d] %s Eval(%s) = %d, expected = %d", i, test.desc, test.fen, b.state.score, test.score)
+		}
+	}
+}
+
 func BenchmarkPerft1(b *testing.B) {
 	board := New()
 	for n := 0; n < b.N; n++ {

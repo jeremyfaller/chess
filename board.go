@@ -87,6 +87,7 @@ type BoardState struct {
 	fullMove, halfMove   int
 	epTarget             Coord
 	hash                 Hash
+	score                int
 }
 
 type Board struct {
@@ -109,6 +110,10 @@ func (b *Board) at(c Coord) Piece {
 
 func (b *Board) set(p Piece, c Coord) {
 	idx := c.Idx()
+
+	// Update the score.
+	b.state.score -= b.at(c).Score()
+	b.state.score += p.Score()
 
 	// Update the hash.
 	hashP := p
