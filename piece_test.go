@@ -44,3 +44,9 @@ func TestPieceScore(t *testing.T) {
 		}
 	}
 }
+
+func TestPieceString(t *testing.T) {
+	if str := scores[Pawn].String(); str != "1.00" {
+		t.Errorf("%s != %s", str, "1.00")
+	}
+}

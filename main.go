@@ -46,7 +46,7 @@ func main() {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
 	fmt.Printf("%+v\n", m)
-	fmt.Println("perft(5) =", b.Perft(5))
+	fmt.Println("perft(6) =", b.Perft(6))
 	runtime.ReadMemStats(&m)
 	fmt.Printf("%+v\n", m)
 }

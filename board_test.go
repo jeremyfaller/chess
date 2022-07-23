@@ -733,7 +733,7 @@ func TestSimpleScore(t *testing.T) {
 	tests := []struct {
 		desc  string
 		fen   string
-		score int
+		score Score
 	}{
 		{"black missing rook", "1nbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", scores[White|Rook]},
 		{"white missing rook", "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/1NBQKBNR w KQkq - 0 1", scores[Black|Rook]},

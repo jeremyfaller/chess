@@ -100,7 +100,7 @@ func (m Move) algebraicString() string {
 	}
 	var capString string
 	if m.isCapture {
-		//capString = "x"
+		capString = "x"
 	}
 	return fmt.Sprintf("%s%s%s", m.from.String(), capString, m.to.String())
 }

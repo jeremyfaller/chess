@@ -87,7 +87,7 @@ type BoardState struct {
 	fullMove, halfMove   int
 	epTarget             Coord
 	hash                 Hash
-	score                int
+	score                Score
 }
 
 type Board struct {
@@ -899,6 +899,14 @@ func FromFEN(s string) (*Board, error) {
 	b.updateChecks()
 
 	return b, nil
+}
+
+// CurrentPlayerScore returns the score for the current player.
+func (b *Board) CurrentPlayerScore() Score {
+	if b.state.turn == White {
+		return b.state.score
+	}
+	return -b.state.score
 }
 
 func init() {

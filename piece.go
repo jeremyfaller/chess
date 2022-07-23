@@ -19,7 +19,16 @@ const (
 	Black        = 16
 )
 
-var scores = []int{
+type Score int
+
+const (
+	maxScore  = 10000000000
+	minScore  = -maxScore
+	stalemate = 0
+	checkmate = minScore
+)
+
+var scores = []Score{
 	0,       // Empty
 	100,     // Pawn
 	300,     // Knight
@@ -101,7 +110,7 @@ func (p Piece) IsPawn() bool {
 	return p.Colorless() == Pawn
 }
 
-func (p Piece) Score() int {
+func (p Piece) Score() Score {
 	return scores[p]
 }
 
@@ -223,4 +232,8 @@ func (p Piece) HashIdx() int {
 		c += 6
 	}
 	return int(c)
+}
+
+func (s Score) String() string {
+	return fmt.Sprintf("%01.2f", float32(s)/100.)
 }
