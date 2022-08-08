@@ -94,3 +94,21 @@ func TestIsPromotion(t *testing.T) {
 		}
 	}
 }
+
+func TestPromotionString(t *testing.T) {
+	coord := testingCoordFunc(t)
+	tests := []struct {
+		desc string
+		move Move
+		ex   string
+	}{
+		{"white queen", Move{p: White | Pawn, from: coord("e7"), to: coord("e8"), promotion: White | Queen}, "e7e8=Q"},
+		{"white queen", Move{p: White | Pawn, from: coord("e7"), to: coord("d8"), promotion: White | Queen, isCapture: true}, "e7xd8=Q"},
+		{"black knight", Move{p: Black | Pawn, from: coord("e2"), to: coord("e1"), promotion: Black | Knight}, "e2e1=n"},
+	}
+	for i, test := range tests {
+		if str := test.move.String(); str != test.ex {
+			t.Errorf("[%d] %s %v = %q, expected %q", i, test.desc, test.move, str, test.ex)
+		}
+	}
+}

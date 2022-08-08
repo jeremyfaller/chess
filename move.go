@@ -93,6 +93,14 @@ func (m Move) castleString() string {
 	return "O-O"
 }
 
+// promotionString returns the string of the promotion.
+func (m Move) promotionString() string {
+	if !m.IsPromotion() {
+		return ""
+	}
+	return "=" + m.promotion.String()
+}
+
 // algebraicString returns the move's string in algebraic notation.
 func (m Move) algebraicString() string {
 	if m.IsCastle() {
@@ -102,7 +110,7 @@ func (m Move) algebraicString() string {
 	if m.isCapture {
 		capString = "x"
 	}
-	return fmt.Sprintf("%s%s%s", m.from.String(), capString, m.to.String())
+	return fmt.Sprintf("%s%s%s%s", m.from.String(), capString, m.to.String(), m.promotionString())
 }
 
 // figureString returns the move's string in figure notation.
@@ -111,11 +119,7 @@ func (m Move) figureString() string {
 	if m.isCapture {
 		capString = "x"
 	}
-	var promString string
-	if m.IsPromotion() {
-		promString = "=" + m.promotion.String()
-	}
-	return fmt.Sprintf("%s%s%s%s", m.p.NoteString(), capString, m.to.String(), promString)
+	return fmt.Sprintf("%s%s%s%s", m.p.NoteString(), capString, m.to.String(), m.promotionString())
 }
 
 // String returns a string for the given Move. Note that it doesn't handle
