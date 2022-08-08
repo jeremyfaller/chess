@@ -105,9 +105,6 @@ func (m Move) promotionString() string {
 // checkString returns the string if we're in check.
 func (m Move) checkString() string {
 	if m.isCheck {
-		if m.isMate {
-			return "#"
-		}
 		return "+"
 	}
 	return ""
