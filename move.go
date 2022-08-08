@@ -5,9 +5,10 @@ import "fmt"
 type Move struct {
 	p           Piece
 	from, to    Coord
-	isCapture   bool
-	isEnPassant bool // true if an en passant capture
 	promotion   Piece
+	isCapture   bool
+	isEnPassant bool // true if an en passant capture.
+	isCheck     bool // true if move is check.
 
 	// State for unwinding a move
 	captured Piece
@@ -101,6 +102,17 @@ func (m Move) promotionString() string {
 	return "=" + m.promotion.String()
 }
 
+// checkString returns the string if we're in check.
+func (m Move) checkString() string {
+	if m.isCheck {
+		if m.isMate {
+			return "#"
+		}
+		return "+"
+	}
+	return ""
+}
+
 // algebraicString returns the move's string in algebraic notation.
 func (m Move) algebraicString() string {
 	if m.IsCastle() {
@@ -110,7 +122,7 @@ func (m Move) algebraicString() string {
 	if m.isCapture {
 		capString = "x"
 	}
-	return fmt.Sprintf("%s%s%s%s", m.from.String(), capString, m.to.String(), m.promotionString())
+	return fmt.Sprintf("%s%s%s%s%s", m.from.String(), capString, m.to.String(), m.promotionString(), m.checkString())
 }
 
 // figureString returns the move's string in figure notation.
@@ -119,7 +131,7 @@ func (m Move) figureString() string {
 	if m.isCapture {
 		capString = "x"
 	}
-	return fmt.Sprintf("%s%s%s%s", m.p.NoteString(), capString, m.to.String(), m.promotionString())
+	return fmt.Sprintf("%s%s%s%s%s", m.p.NoteString(), capString, m.to.String(), m.promotionString(), m.checkString())
 }
 
 // String returns a string for the given Move. Note that it doesn't handle

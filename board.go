@@ -149,13 +149,15 @@ func (b *Board) ZHash() Hash {
 // Print pretty-prints a board on standard out.
 func (b *Board) Print() {
 	for y := 7; y >= 0; y-- {
-		println("+-+-+-+-+-+-+-+-+")
+		println("  +-+-+-+-+-+-+-+-+")
+		print(y+1, " ")
 		for x := 0; x < 8; x++ {
 			print("|", b.at(Coord{x, y}).String())
 		}
 		println("|")
 	}
-	println("+-+-+-+-+-+-+-+-+")
+	println("  +-+-+-+-+-+-+-+-+")
+	println("   a b c d e f g h ")
 }
 
 func (b *Board) castleString() string {
@@ -334,6 +336,9 @@ func (b *Board) wouldKingBeInCheck(m *Move) bool {
 	// check, or take the checking piece.
 	b.MakeMove(*m)
 	check := b.IsKingInCheck(m.p)
+	if b.IsKingInCheck(m.p.OppositeColor()) {
+		m.isCheck = true
+	}
 	b.UnmakeMove()
 	return check
 }
@@ -514,9 +519,6 @@ func (b *Board) PossibleMoves(moves []Move) []Move {
 	for p := 0; p < 64; p++ {
 		c := CoordFromIdx(p)
 		p := b.at(c)
-		if p.IsEmpty() { // no piece, skip
-			continue
-		}
 		if p.Color() != b.state.turn { // not the color we want, skip
 			continue
 		}
