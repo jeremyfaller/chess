@@ -5,43 +5,11 @@ import (
 	"time"
 )
 
-// line holds the moves and the score for the current line.
-type line struct {
-	s Score
-	m []Move
-}
-
-type lineQ []line
-
-func (q lineQ) Len() int {
-	return len(q)
-}
-
-func (q lineQ) Less(i, j int) bool {
-	return q[i].s < q[j].s
-}
-
-func (q lineQ) Swap(i, j int) {
-	q[i], q[j] = q[j], q[i]
-}
-
-func (q *lineQ) Push(l any) {
-	*q = append(*q, l.(line))
-}
-
-func (q *lineQ) Pop() any {
-	old := *q
-	n := len(old)
-	x := old[n-1]
-	*q = old[0 : n-1]
-	return x
-}
-
 type Eval struct {
 	b         *Board
 	positions int
-	l         line
-	lq        *lineQ
+	depth     int
+	score     Score
 
 	// benchmark evaluations
 	startTime, endTime time.Time
@@ -49,15 +17,23 @@ type Eval struct {
 
 // Creates a new Eval.
 func NewEval(b *Board) Eval {
-	return Eval{
-		b:  b,
-		lq: &lineQ{},
+	e := Eval{
+		b:     b,
+		depth: 3,
 	}
+	return e
 }
 
-// depth returns how deep we should run our evaluation.
-func (e *Eval) depth() int {
-	return 3
+// sortMoves sorts the possible moves, trying to find good ones first.
+func (e *Eval) sortMoves(moves []Move) {
+	// Move checks and captures to the head of the queue.
+	pIdx := 0
+	for i := range moves {
+		if moves[i].isCheck || moves[i].isCapture || moves[i].IsPromotion() {
+			moves[pIdx], moves[i] = moves[i], moves[pIdx]
+			pIdx += 1
+		}
+	}
 }
 
 // calc evaluates the current position, and returns a score.
@@ -65,12 +41,37 @@ func (e *Eval) calc(player Piece) Score {
 	return e.b.CurrentPlayerScore()
 }
 
+// Duration returns the length of time the evaluation has run.
+func (e *Eval) Duration() time.Duration {
+	return e.endTime.Sub(e.startTime)
+}
+
+// TimeString returns the length of time it took to do the evaluation.
+func (e *Eval) TimeString() string {
+	d := e.Duration()
+	if d.Hours() > 1 {
+		return fmt.Sprintf("%gh", d.Hours())
+	}
+	if d.Minutes() > 1 {
+		return fmt.Sprintf("%gm", d.Minutes())
+	}
+	if d.Seconds() > 1 {
+		return fmt.Sprintf("%gs", d.Seconds())
+	}
+	if d.Milliseconds() > 1 {
+		return fmt.Sprintf("%dms", d.Milliseconds())
+	}
+	if d.Microseconds() > 1 {
+		return fmt.Sprintf("%dus", d.Microseconds())
+	}
+	return fmt.Sprintf("%dns", d.Nanoseconds())
+}
+
 // Start begins an evaluation.
 func (e *Eval) Start() {
-	origDepth := e.depth()
+	origDepth := e.depth
 	movesToCheck := make([][]Move, origDepth+1)
 	player := e.b.state.turn
-	e.b.Print()
 
 	var search func(int, Score, Score) Score
 	search = func(d int, alpha, beta Score) Score {
@@ -80,6 +81,8 @@ func (e *Eval) Start() {
 		// Get a link to our local slice.
 		moves := movesToCheck[origDepth-d][:0]
 		moves = e.b.PossibleMoves(moves)
+		e.sortMoves(moves)
+
 		// If no moves, we could be in stalemate or checkmate.
 		if len(moves) == 0 {
 			if e.b.IsKingInCheck(e.b.state.turn) {
@@ -96,9 +99,6 @@ func (e *Eval) Start() {
 		}
 
 		// Alpha-beta prune the search tree.
-		if d == origDepth {
-			fmt.Println(moves)
-		}
 		for _, move := range moves {
 			e.b.MakeMove(move)
 			evaluation := -search(d-1, -beta, -alpha)
@@ -118,7 +118,6 @@ func (e *Eval) Start() {
 	}
 
 	e.startTime = time.Now()
-	score := search(origDepth, minScore, maxScore)
+	e.score = search(origDepth, minScore, maxScore)
 	e.endTime = time.Now()
-	fmt.Println(score)
 }
