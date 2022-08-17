@@ -595,6 +595,7 @@ func (b *Board) updateCastleState(m Move) {
 	b.state.hash ^= b.zCastle()
 }
 
+// updateEPTarget updates the enpassant target.
 func (b *Board) updateEPTarget(m Move) {
 	if b.state.epTarget != InvalidCoord {
 		b.state.hash ^= zLookups[zEP+b.state.epTarget.FileIdx()]
@@ -719,11 +720,33 @@ func (b *Board) GetMove(from, to Coord) (Move, error) {
 	return Move{}, fmt.Errorf("invalid move: %v", Move{from: from, to: to})
 }
 
+type perftHash struct {
+	h Hash
+	d int
+}
+
 // Perft calculates the number of possible moves at a given depth. It's quite
 // helpful debugging the move generation. Optionally, Perft will also print the
 // number of reachable moves for each valid move in the given board state.
 func (b *Board) Perft(origDepth int) int {
 	moveQueue := make([][]Move, origDepth)
+
+	hashes := make(map[perftHash]int)
+	strs := make(map[perftHash]string)
+
+	checkBoard := func(b *Board) {
+		b2 := New()
+		for _, m := range b.moves {
+			b2.MakeMove(m)
+		}
+		if b.state.hash != b2.state.hash {
+			fmt.Printf("%x %x\n", b.ZHash(), b2.ZHash())
+			for i := range b.moves {
+				fmt.Println(b.moves[i], b2.moves[i])
+			}
+			//panic("done")
+		}
+	}
 
 	var perft func(int, bool) int
 	perft = func(d int, s bool) int {
@@ -742,12 +765,30 @@ func (b *Board) Perft(origDepth int) int {
 			}
 			return len(moves)
 		}
+		fmt.Println(moves)
 
 		// Haven't seen this position before, need to calculate it.
 		total := 0
 		for _, move := range moves {
 			b.MakeMove(move)
+			checkBoard(b)
 			cnt := perft(d-1, false)
+			h := perftHash{b.state.hash, d}
+			if v, ok := hashes[h]; ok {
+				if v != cnt {
+					fmt.Println(v, cnt, strs[h], b.FENString())
+					b2, _ := FromFEN(strs[h])
+					fmt.Println(b.state.hash, b2.state.hash)
+				}
+			}
+			if b.FENString() == "rnbqkbnr/pppppppp/8/8/8/5N2/PPPPPPPP/RNBQKB1R b KQkq - 1 1" {
+				fmt.Println("inserting 1", cnt, b.state.hash)
+			}
+			if b.FENString() == "rnbqkbnr/pppppppp/8/8/8/P7/1PPPPPPP/RNBQKBNR b KQkq - 0 1" {
+				fmt.Println("inserting 2", cnt, b.state.hash)
+			}
+			hashes[h] = cnt
+			strs[h] = b.FENString()
 			if s {
 				fmt.Printf("%v: %d\n", move, cnt)
 			}

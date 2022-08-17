@@ -191,5 +191,5 @@ func TestMateIn2(t *testing.T) {
 			t.Errorf("[%d] was not a checkmate %v", i, test.fen)
 		}
 	}
-	t.Logf("evaluated %d games, total positions: %d %dus/position", len(tests), positions, d.Microseconds()/int64(positions))
+	t.Logf("evaluated %d games, total positions: %d %d ns/position", len(tests), positions, d.Nanoseconds()/int64(positions))
 }
