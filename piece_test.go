@@ -21,7 +21,7 @@ func TestHashIdx(t *testing.T) {
 	for _, c := range []Piece{White, Black} {
 		for _, ty := range []Piece{Pawn, Rook, Knight, Bishop, Queen, King} {
 			p := c | ty
-			if h := p.HashIdx(); h < 0 || h >= 12 {
+			if h := p.HashIdx(); h < 0 || h >= len(zLookups) {
 				t.Errorf("[%v].HashIdx() = %d %d", p, h, p.Colorless()-Pawn)
 			}
 		}

@@ -231,7 +231,7 @@ func (p Piece) HashIdx() int {
 	if p.Color() == Black {
 		c += 6
 	}
-	return int(c)
+	return int(c) * 64
 }
 
 func (s Score) String() string {
