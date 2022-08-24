@@ -15,6 +15,39 @@ type Eval struct {
 	startTime, endTime time.Time
 }
 
+type Line struct {
+	c     Piece
+	Score Score
+	Moves []Move
+}
+
+func newLine(d int, c Piece) Line {
+	return Line{
+		c:     c,
+		Score: minScore,
+		Moves: make([]Move, d),
+	}
+}
+
+func (l *Line) add(m Move, s Score, d int) {
+	if m.p.Color() != l.c {
+		s *= -1
+	}
+
+	// Ignore worse Lines.
+	if s < l.Score && d != 0 {
+		return
+	}
+
+	l.Score = s
+	if len(l.Moves) < d+1 {
+		newMoves := make([]Move, d+1)
+		copy(newMoves, l.Moves)
+		l.Moves = newMoves
+	}
+	l.Moves[d] = m
+}
+
 // Creates a new Eval.
 func NewEval(b *Board) Eval {
 	e := Eval{
@@ -25,15 +58,43 @@ func NewEval(b *Board) Eval {
 }
 
 // sortMoves sorts the possible moves, trying to find good ones first.
-func (e *Eval) sortMoves(moves []Move) {
-	// Move checks and captures to the head of the queue.
-	pIdx := 0
+//
+// We also return the number of moves that are special, ie checks, promotions,
+// and captures.
+///
+// Moves will be sorted in the following order:
+//   [0..X] Checks
+//   [X..Y] Promotions
+//   [Y..Z] Captures
+//   [Z..N] Rest
+func (e *Eval) sortMoves(moves []Move) int {
+	// Move likely good moves to the head.
+	idx := 0
 	for i := range moves {
 		if moves[i].isCheck || moves[i].isCapture || moves[i].IsPromotion() {
+			moves[idx], moves[i] = moves[i], moves[idx]
+			idx += 1
+		}
+	}
+
+	// Move checks to the begining.
+	cIdx := 0
+	for i := 0; i < idx; i++ {
+		if moves[i].isCheck {
+			moves[cIdx], moves[i] = moves[i], moves[cIdx]
+			cIdx += 1
+		}
+	}
+
+	// Move promotions to the next place.
+	pIdx := 0
+	for i := cIdx; i < idx; i++ {
+		if moves[i].IsPromotion() {
 			moves[pIdx], moves[i] = moves[i], moves[pIdx]
 			pIdx += 1
 		}
 	}
+	return idx
 }
 
 // calc evaluates the current position, and returns a score.
@@ -72,6 +133,7 @@ func (e *Eval) Start() {
 	origDepth := e.depth
 	movesToCheck := make([][]Move, origDepth+1)
 	player := e.b.state.turn
+	line := newLine(origDepth, player)
 
 	var search func(int, Score, Score) Score
 	search = func(d int, alpha, beta Score) Score {
@@ -103,6 +165,17 @@ func (e *Eval) Start() {
 			e.b.MakeMove(move)
 			evaluation := -search(d-1, -beta, -alpha)
 			e.b.UnmakeMove()
+
+			// Add the move to the line.
+			line.add(move, evaluation, origDepth-d)
+			if d == origDepth {
+				if line.Moves[0].String() == "a1a1" {
+					fmt.Println(d, origDepth, origDepth-d, move)
+					panic("WEIRD")
+				}
+				fmt.Println(line)
+				line = newLine(origDepth, player)
+			}
 
 			// Prune early.
 			// TODO(jfaller): need to check that the engine will find mulitple

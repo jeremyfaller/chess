@@ -182,6 +182,7 @@ func TestMateIn2(t *testing.T) {
 		if err != nil {
 			t.Fatalf("[%d] error on fen %v", i, err)
 		}
+
 		e := NewEval(b)
 		e.Start()
 		positions += e.positions
