@@ -121,7 +121,7 @@ func (b *Board) set(p Piece, c Coord) {
 		hashP = b.at(c)
 	}
 	if hashP != Empty {
-		b.state.hash ^= zLookups[hashP.HashIdx()*idx]
+		b.state.hash ^= zLookups[hashP.HashIdx()+idx]
 	}
 
 	// Update the king's location.
@@ -678,10 +678,6 @@ func (b *Board) UnmakeMove() {
 	m := b.moves[len(b.moves)-1]
 	b.moves = b.moves[:len(b.moves)-1]
 
-	// Fix game state.
-	b.state = b.oldState[len(b.oldState)-1]
-	b.oldState = b.oldState[:len(b.oldState)-1]
-
 	// And fix board state.
 	b.set(Empty, m.to)
 	b.set(m.p, m.from)
@@ -701,6 +697,10 @@ func (b *Board) UnmakeMove() {
 	}
 
 	b.updateChecks()
+
+	// Fix game state.
+	b.state = b.oldState[len(b.oldState)-1]
+	b.oldState = b.oldState[:len(b.oldState)-1]
 }
 
 // GetMove gets a move given two coordinates.
@@ -729,24 +729,11 @@ type perftHash struct {
 // helpful debugging the move generation. Optionally, Perft will also print the
 // number of reachable moves for each valid move in the given board state.
 func (b *Board) Perft(origDepth int) int {
+	// Prevents allocating space for moves at every depth.
 	moveQueue := make([][]Move, origDepth)
 
-	hashes := make(map[perftHash]int)
-	strs := make(map[perftHash]string)
-
-	checkBoard := func(b *Board) {
-		b2 := New()
-		for _, m := range b.moves {
-			b2.MakeMove(m)
-		}
-		if b.state.hash != b2.state.hash {
-			fmt.Printf("%x %x\n", b.ZHash(), b2.ZHash())
-			for i := range b.moves {
-				fmt.Println(b.moves[i], b2.moves[i])
-			}
-			//panic("done")
-		}
-	}
+	// Keep around a set of counts.
+	counts := make(map[perftHash]int)
 
 	var perft func(int, bool) int
 	perft = func(d int, s bool) int {
@@ -765,30 +752,21 @@ func (b *Board) Perft(origDepth int) int {
 			}
 			return len(moves)
 		}
-		fmt.Println(moves)
 
 		// Haven't seen this position before, need to calculate it.
 		total := 0
 		for _, move := range moves {
 			b.MakeMove(move)
-			checkBoard(b)
-			cnt := perft(d-1, false)
+
+			var cnt int
 			h := perftHash{b.state.hash, d}
-			if v, ok := hashes[h]; ok {
-				if v != cnt {
-					fmt.Println(v, cnt, strs[h], b.FENString())
-					b2, _ := FromFEN(strs[h])
-					fmt.Println(b.state.hash, b2.state.hash)
-				}
+			if v, ok := counts[h]; ok {
+				cnt = v
+			} else {
+				cnt = perft(d-1, false)
 			}
-			if b.FENString() == "rnbqkbnr/pppppppp/8/8/8/5N2/PPPPPPPP/RNBQKB1R b KQkq - 1 1" {
-				fmt.Println("inserting 1", cnt, b.state.hash)
-			}
-			if b.FENString() == "rnbqkbnr/pppppppp/8/8/8/P7/1PPPPPPP/RNBQKBNR b KQkq - 0 1" {
-				fmt.Println("inserting 2", cnt, b.state.hash)
-			}
-			hashes[h] = cnt
-			strs[h] = b.FENString()
+			counts[h] = cnt
+
 			if s {
 				fmt.Printf("%v: %d\n", move, cnt)
 			}
@@ -815,20 +793,27 @@ func EmptyBoard() *Board {
 
 // New returns a new Board, set up for play (ie a new chess game).
 func New() *Board {
-	b := EmptyBoard()
-	b.state.turn = White
-	b.state.wOO = true
-	b.state.wOOO = true
-	b.state.bOO = true
-	b.state.bOOO = true
-	pieces := []Piece{Rook, Knight, Bishop, Queen, King, Bishop, Knight, Rook}
-	for x, p := range pieces {
-		b.set(p|White, Coord{x, 0})
-		b.set(Pawn|White, Coord{x, 1})
-		b.set(Pawn|Black, Coord{x, 6})
-		b.set(p|Black, Coord{x, 7})
+	b, err := FromFEN(StartingFEN)
+	if err != nil {
+		panic(err)
 	}
 	return b
+	/*
+		b := EmptyBoard()
+		b.state.turn = White
+		b.state.wOO = true
+		b.state.wOOO = true
+		b.state.bOO = true
+		b.state.bOOO = true
+		pieces := []Piece{Rook, Knight, Bishop, Queen, King, Bishop, Knight, Rook}
+		for x, p := range pieces {
+			b.set(p|White, Coord{x, 0})
+			b.set(Pawn|White, Coord{x, 1})
+			b.set(Pawn|Black, Coord{x, 6})
+			b.set(p|Black, Coord{x, 7})
+		}
+		return b
+	*/
 }
 
 var runeToPiece = map[rune]Piece{
@@ -950,6 +935,49 @@ func (b *Board) CurrentPlayerScore() Score {
 		return b.state.score
 	}
 	return -b.state.score
+}
+
+// reversePlayers reverses the white and black players.
+func (b *Board) reversePlayers() *Board {
+	// Flip white/black
+	hasSpace := false
+	f := strings.Map(func(r rune) rune {
+		if unicode.IsSpace(r) {
+			hasSpace = true
+		}
+		if hasSpace {
+			switch r {
+			case 'b':
+				return 'w'
+			case 'w':
+				return 'b'
+			}
+		} else {
+			switch {
+			case unicode.IsUpper(r):
+				return unicode.ToLower(r)
+			case unicode.IsLower(r):
+				return unicode.ToUpper(r)
+			}
+		}
+		return r
+	}, b.FENString())
+
+	// Now we need to flip the board.
+	pieces := strings.Split(f, " ")
+	ranks := strings.Split(pieces[0], "/")
+	for i := 0; i < len(ranks)/2; i++ {
+		ranks[i], ranks[7-i] = ranks[7-i], ranks[i]
+	}
+	pieces[0] = strings.Join(ranks, "/")
+	f = strings.Join(pieces, " ")
+
+	// Finally, return the board.
+	b2, err := FromFEN(f)
+	if err != nil {
+		panic(err)
+	}
+	return b2
 }
 
 func init() {

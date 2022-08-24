@@ -610,19 +610,19 @@ func TestPerft(t *testing.T) {
 		{"perft(1)", StartingFEN, 1, 20, nil},
 		{"perft(2)", StartingFEN, 2, 400, nil},
 		{"perft(3)", StartingFEN, 3, 8902, nil},
+		{"perft(4)", StartingFEN, 4, 197281, nil},
+		{"perft(5)", StartingFEN, 5, 4865609, nil},
+		{"perft(6)", StartingFEN, 6, 119060324, nil},
 		/*
-			{"perft(4)", StartingFEN, 4, 197281, nil},
-			{"perft(5)", StartingFEN, 5, 4865609, nil},
-				{"perft(6)", StartingFEN, 6, 119060324, nil},
-				{"perft(7)", StartingFEN, 7, 3195901860, nil},
-				{"perft(8)", StartingFEN, 8, 84998978956, nil},
-				{"kiwipete(1)", "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1", 1, 48, nil},
-				{"kiwipete(2)", "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1", 2, 2039, nil},
-				{"kiwipete(3)", "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1", 3, 97862, nil},
-				{"kiwipete(4)", "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1", 4, 4085603, nil},
-				{"kiwipete(5)", "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1", 5, 193690690, nil},
-				{"kiwipete(6)", "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1", 6, 8031647685, nil},
-				{"position 5", "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8", 5, 89941194, nil},
+			{"perft(7)", StartingFEN, 7, 3195901860, nil},
+			{"perft(8)", StartingFEN, 8, 84998978956, nil},
+			{"kiwipete(1)", "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1", 1, 48, nil},
+			{"kiwipete(2)", "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1", 2, 2039, nil},
+			{"kiwipete(3)", "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1", 3, 97862, nil},
+			{"kiwipete(4)", "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1", 4, 4085603, nil},
+			{"kiwipete(5)", "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1", 5, 193690690, nil},
+			{"kiwipete(6)", "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1", 6, 8031647685, nil},
+			{"position 5", "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8", 5, 89941194, nil},
 		*/
 	}
 
@@ -761,6 +761,7 @@ func TestHashDifference(t *testing.T) {
 		f1, f2 string
 	}{
 		{"rnbqkbnr/pppppppp/8/8/8/5N2/PPPPPPPP/RNBQKB1R b KQkq - 1 1", "rnbqkbnr/pppppppp/8/8/8/P7/1PPPPPPP/RNBQKBNR b KQkq - 0 1"},
+		{"rnbqkb1r/pppppppp/5n2/8/8/7P/PPPPPPP1/RNBQKBNR w KQkq - 1 2", "rnbqkb1r/pppppppp/5n2/8/7P/8/PPPPPPP1/RNBQKBNR w KQkq - 1 2"},
 	}
 
 	for i, test := range tests {
@@ -778,7 +779,6 @@ func TestHashDifference(t *testing.T) {
 		if b1.state.hash == b2.state.hash {
 			t.Errorf("[%d] hashes are equal", i)
 		}
-		t.Logf("%d %d\n", b1.state.hash, b2.state.hash)
 	}
 }
 
