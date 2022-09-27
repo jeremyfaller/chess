@@ -627,20 +627,24 @@ func TestPerft(t *testing.T) {
 	}
 
 	for i, test := range tests {
-		t.Logf("[%d] %v should equal %d", i, test.desc, test.target)
-		b, err := FromFEN(test.fen)
-		if err != nil {
-			t.Errorf("[%d] %s FromFEN(%q) = %v", i, test.desc, test.fen, err)
-		}
-		if len(test.moves) != 0 {
-			t.Logf("[%d] %s executing moves %v", i, test.desc, test.moves)
-			for _, move := range test.moves {
-				b.MakeMove(move)
+		test := test // rebind
+		t.Run(test.desc, func(t *testing.T) {
+			t.Parallel()
+			t.Logf("[%d] %v should equal %d", i, test.desc, test.target)
+			b, err := FromFEN(test.fen)
+			if err != nil {
+				t.Errorf("[%d] %s FromFEN(%q) = %v", i, test.desc, test.fen, err)
 			}
-		}
-		if cnt := b.Perft(test.depth - len(test.moves)); cnt != test.target {
-			t.Errorf("[%d] %s perft(%v) = %d, expected %d", i, test.desc, b.FENString(), cnt, test.target)
-		}
+			if len(test.moves) != 0 {
+				t.Logf("[%d] %s executing moves %v", i, test.desc, test.moves)
+				for _, move := range test.moves {
+					b.MakeMove(move)
+				}
+			}
+			if cnt := b.Perft(test.depth - len(test.moves)); cnt != test.target {
+				t.Errorf("[%d] %s perft(%v) = %d, expected %d", i, test.desc, b.FENString(), cnt, test.target)
+			}
+		})
 	}
 }
 
