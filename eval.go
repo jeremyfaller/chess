@@ -49,10 +49,10 @@ func (l *Line) add(m Move, s Score, d int) {
 }
 
 // Creates a new Eval.
-func NewEval(b *Board) Eval {
+func NewEval(b *Board, depth int) Eval {
 	e := Eval{
 		b:     b,
-		depth: 3,
+		depth: depth,
 	}
 	return e
 }
@@ -169,11 +169,6 @@ func (e *Eval) Start() {
 			// Add the move to the line.
 			line.add(move, evaluation, origDepth-d)
 			if d == origDepth {
-				if line.Moves[0].String() == "a1a1" {
-					fmt.Println(d, origDepth, origDepth-d, move)
-					panic("WEIRD")
-				}
-				fmt.Println(line)
 				line = newLine(origDepth, player)
 			}
 
