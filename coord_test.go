@@ -47,3 +47,25 @@ func TestDirForCoord(t *testing.T) {
 		}
 	}
 }
+
+func TestBadCastleStartingLocations(t *testing.T) {
+	tests := []struct {
+		desc  string
+		dir   Dir
+		loc   Coord
+		valid bool
+	}{
+		{"a1,O-O", E2, CoordFromIdx(0), false},
+		{"a1,O-O-O", W2, CoordFromIdx(0), false},
+		{"e1,O-O", E2, CoordFromIdx(4), true},
+		{"e1,O-O", W2, CoordFromIdx(4), true},
+		{"e8,O-O", E2, CoordFromIdx(8*7 + 4), true},
+		{"e8,O-O-O", W2, CoordFromIdx(8*7 + 4), true},
+	}
+	for i, test := range tests {
+		v := test.loc.ApplyDir(test.dir)
+		if value := v.IsValid(); value != test.valid {
+			t.Errorf("[%d] %s IsValid() = %v, expected %v", i, test.desc, value, test.valid)
+		}
+	}
+}

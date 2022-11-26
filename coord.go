@@ -105,6 +105,9 @@ func (c Coord) ApplyDir(d Dir) Coord {
 
 	// castle moves
 	case E2:
+		if c.x != 4 {
+			return InvalidCoord
+		}
 		return Coord{c.x + 2, c.y}
 	case W2:
 		return Coord{c.x - 2, c.y}
