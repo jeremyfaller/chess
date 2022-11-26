@@ -728,37 +728,37 @@ type perftHash struct {
 // Perft calculates the number of possible moves at a given depth. It's quite
 // helpful debugging the move generation. Optionally, Perft will also print the
 // number of reachable moves for each valid move in the given board state.
-func (b *Board) Perft(origDepth int) int {
+func (b *Board) Perft(origDepth int) uint64 {
+	if origDepth == 0 {
+		return 0
+	}
+
 	// Prevents allocating space for moves at every depth.
 	moveQueue := make([][]Move, origDepth)
 
 	// Keep around a set of counts.
-	counts := make(map[perftHash]int)
+	counts := make(map[perftHash]uint64)
 
-	var perft func(int, bool) int
-	perft = func(d int, s bool) int {
-		if d == 0 {
-			return 1
-		}
-
+	var perft func(int, bool) uint64
+	perft = func(d int, s bool) uint64 {
 		// Exit early.
 		moves := moveQueue[origDepth-d][:0]
 		moves = b.PossibleMoves(moves)
-		if d == 1 {
+		if d <= 1 {
 			if s {
 				for _, m := range moves {
 					fmt.Printf("%v: 1\n", m)
 				}
 			}
-			return len(moves)
+			return uint64(len(moves))
 		}
 
 		// Haven't seen this position before, need to calculate it.
-		total := 0
+		var total uint64
 		for _, move := range moves {
 			b.MakeMove(move)
 
-			var cnt int
+			var cnt uint64
 			h := perftHash{b.state.hash, d}
 			if v, ok := counts[h]; ok {
 				cnt = v

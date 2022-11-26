@@ -604,7 +604,7 @@ func TestPerft(t *testing.T) {
 		desc   string
 		fen    string
 		depth  int
-		target int
+		target uint64
 		moves  []Move
 	}{
 		{"perft(1)", StartingFEN, 1, 20, nil},
@@ -828,5 +828,12 @@ func BenchmarkPerft5(b *testing.B) {
 	board := New()
 	for n := 0; n < b.N; n++ {
 		board.Perft(5)
+	}
+}
+
+func BenchmarkPerft6(b *testing.B) {
+	board := New()
+	for n := 0; n < b.N; n++ {
+		board.Perft(6)
 	}
 }
