@@ -81,31 +81,31 @@ func (m *PsuedoMoves) countZeros() (total int) {
 
 // BoardState contains the state of the board that's Undoable.
 type BoardState struct {
-	turn                 Piece // Whose turn is it?
-	wOO, wOOO, bOO, bOOO bool  // Can the white/black king castle kingside/queenside?
-	wkLoc, bkLoc         Coord // Where are the kings located?
-	fullMove, halfMove   int
-	epTarget             Coord
-	hash                 Hash
-	score                Score
-}
-
-type Board struct {
-	spaces   Spaces
-	state    BoardState
-	moves    []Move
-	oldState []BoardState
+	spaces             Spaces
+	turn               Piece // Whose turn is it?
+	fullMove, halfMove int
+	epTarget           Coord
+	hash               Hash
+	score              Score
 
 	// State of the kings.
-	isWCheck, isBCheck bool
+	wOO, wOOO, bOO, bOOO bool  // Can the white/black king castle kingside/queenside?
+	wkLoc, bkLoc         Coord // Where are the kings located?
+	isWCheck, isBCheck   bool
 
 	// Bitfields stating if white or black attack a given square.
 	wPseudos PsuedoMoves
 	bPseudos PsuedoMoves
 }
 
+type Board struct {
+	state    BoardState
+	moves    []Move
+	oldState []BoardState
+}
+
 func (b *Board) at(c Coord) Piece {
-	return b.spaces[c.Idx()]
+	return b.state.spaces[c.Idx()]
 }
 
 func (b *Board) set(p Piece, c Coord) {
@@ -138,7 +138,7 @@ func (b *Board) set(p Piece, c Coord) {
 	} else {
 		b.PseudoMoves(p).Update(p, c)
 	}
-	b.spaces[idx] = p
+	b.state.spaces[idx] = p
 }
 
 // ZHash returns the Zobrist hash for this board state.
@@ -242,9 +242,9 @@ func (b *Board) PseudoMoves(p Piece) *PsuedoMoves {
 		panic("empty")
 	}
 	if p.Color() == White {
-		return &b.wPseudos
+		return &b.state.wPseudos
 	}
-	return &b.bPseudos
+	return &b.state.bPseudos
 }
 
 // IsKingInCheck returns true if the given piece's color's king is in check.
@@ -253,9 +253,9 @@ func (b *Board) IsKingInCheck(p Piece) bool {
 		panic("empty")
 	}
 	if p.Color() == White {
-		return b.isWCheck
+		return b.state.isWCheck
 	}
-	return b.isBCheck
+	return b.state.isBCheck
 }
 
 // KingLoc returns the king location for the given piece's color.
@@ -269,9 +269,9 @@ func (b *Board) KingLoc(p Piece) Coord {
 // setCheck sets the check state.
 func (b *Board) setCheck(p Piece, v bool) {
 	if p.Color() == White {
-		b.isWCheck = v
+		b.state.isWCheck = v
 	} else {
-		b.isBCheck = v
+		b.state.isBCheck = v
 	}
 }
 
@@ -671,32 +671,35 @@ func (b *Board) UnmakeMove() {
 	}
 
 	// Pop the last move.
-	m := b.moves[len(b.moves)-1]
 	b.moves = b.moves[:len(b.moves)-1]
-
-	// And fix board state.
-	b.set(Empty, m.to)
-	b.set(m.p, m.from)
-	if m.isCapture {
-		l := m.to
-		if m.isEnPassant {
-			if m.p.Color() == White {
-				l.y -= 1
-			} else {
-				l.y += 1
-			}
-		}
-		b.set(m.captured, l)
-	} else if c := m.RookCoord(); c != InvalidCoord {
-		b.set(Empty, m.CastleMidCoord())
-		b.set(m.p.Color()|Rook, m.RookCoord())
-	}
-
-	b.updateChecks()
-
-	// Fix game state.
 	b.state = b.oldState[len(b.oldState)-1]
 	b.oldState = b.oldState[:len(b.oldState)-1]
+
+	/*
+		// And fix board state.
+		b.set(Empty, m.to)
+		b.set(m.p, m.from)
+		if m.isCapture {
+			l := m.to
+			if m.isEnPassant {
+				if m.p.Color() == White {
+					l.y -= 1
+				} else {
+					l.y += 1
+				}
+			}
+			b.set(m.captured, l)
+		} else if c := m.RookCoord(); c != InvalidCoord {
+			b.set(Empty, m.CastleMidCoord())
+			b.set(m.p.Color()|Rook, m.RookCoord())
+		}
+
+		b.updateChecks()
+
+		// Fix game state.
+		b.state = b.oldState[len(b.oldState)-1]
+		b.oldState = b.oldState[:len(b.oldState)-1]
+	*/
 }
 
 // GetMove gets a move given two coordinates.
