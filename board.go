@@ -30,10 +30,9 @@ var zLookups [12*64 + 1 + 4 + 8]Hash
 
 // Set sets a position as attacked.
 func (a *PsuedoMoves) Update(p Piece, c Coord) {
-	bit := c.Bit()
-
 	// If we're clearing a piece, just clear all spaces on the board it attacks.
 	if p == Empty {
+		bit := c.Bit()
 		for i := 0; i < 64; i++ {
 			a[i] &= ^bit
 		}
@@ -41,14 +40,8 @@ func (a *PsuedoMoves) Update(p Piece, c Coord) {
 	}
 
 	// Set the attacked bits for the given piece.
-	for _, d := range p.AttackDir() {
-		for i, dis, pos := 0, p.AttackDistance(d), c; i < dis; i++ {
-			pos = pos.ApplyDir(d)
-			if !pos.IsValid() {
-				break
-			}
-			a[pos.Idx()] |= bit
-		}
+	for i, b := range AttacksForPiece(p, c) {
+		a[i] |= b
 	}
 }
 

@@ -49,20 +49,12 @@ func (c Coord) String() string {
 	return fmt.Sprintf("%c%d", noteString[c.x], c.y+1)
 }
 
-func (c Coord) PanicInvalid() {
-	if !c.IsValid() {
-		panic(fmt.Sprintf("bad coord: (%d,%d)", c.x, c.y))
-	}
-}
-
 func (c Coord) Idx() int {
-	c.PanicInvalid()
 	return c.x + c.y*8
 }
 
 // Bit returns a unique bit for a given Coord.
 func (c Coord) Bit() Bit {
-	c.PanicInvalid()
 	return Bit(1) << c.Idx()
 }
 
