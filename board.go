@@ -465,11 +465,8 @@ func (b *Board) GetMoves(moves []Move, c Coord) []Move {
 		return moves
 	}
 
-	for _, d := range p.MoveDir() {
-		lastPos := c
-		for i, dis := 0, p.SlideDistance(); i < dis; i++ {
-			// Skip positions outside the board.
-			toPos := lastPos.ApplyDir(d)
+	for _, dirs := range MovesForPiece(p, c) {
+		for _, toPos := range dirs {
 			if !toPos.IsValid() {
 				break
 			}
@@ -484,7 +481,6 @@ func (b *Board) GetMoves(moves []Move, c Coord) []Move {
 				to:   toPos,
 				from: c,
 			}
-			lastPos = toPos
 
 			// If the move would be illegal, we keep checking as a different move in
 			// this direction might be legal.

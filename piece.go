@@ -19,6 +19,8 @@ const (
 	Black        = 16
 )
 
+var movesForPiece map[Piece][][][]Coord
+
 type Score int
 
 const (
@@ -236,4 +238,44 @@ func (p Piece) HashIdx() int {
 
 func (s Score) String() string {
 	return fmt.Sprintf("%01.2f", float32(s)/100.)
+}
+
+func genMoves(p Piece, c Coord) (allMoves [][]Coord) {
+	b := New()
+	b.set(p, c)
+	for _, d := range p.MoveDir() {
+		pos := c
+		moves := []Coord{}
+		for i, dis := 0, p.SlideDistance(); i < dis; i++ {
+			pos = pos.ApplyDir(d)
+			if !pos.IsValid() {
+				break
+			}
+			moves = append(moves, pos)
+		}
+		if len(moves) != 0 {
+			allMoves = append(allMoves, moves)
+		}
+	}
+	return allMoves
+}
+
+func init() {
+	// Make the move LUT.
+	movesForPiece = make(map[Piece][][][]Coord)
+	for _, c := range []Piece{Black, White} {
+		for _, p := range []Piece{King, Queen, Rook, Bishop, Knight, Pawn} {
+			p |= c
+			for i := 0; i < 64; i++ {
+				moves := genMoves(p, CoordFromIdx(i))
+				movesForPiece[p] = append(movesForPiece[p], moves)
+			}
+		}
+	}
+}
+
+// MovesForPiece returns a slice of slices of all the squares a piece could possibly move for
+// a Piece at a given Coord.
+func MovesForPiece(p Piece, c Coord) [][]Coord {
+	return movesForPiece[p][c.Idx()]
 }

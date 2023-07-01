@@ -41,6 +41,7 @@ func main() {
 		trace.Start(f)
 		defer trace.Stop()
 	}
+
 	b := New()
 
 	var m runtime.MemStats
