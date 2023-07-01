@@ -241,8 +241,10 @@ func (s Score) String() string {
 }
 
 func genMoves(p Piece, c Coord) (allMoves [][]Coord) {
-	b := New()
-	b.set(p, c)
+	/*
+		b := New()
+		b.set(p, c)
+	*/
 	for _, d := range p.MoveDir() {
 		pos := c
 		moves := []Coord{}
