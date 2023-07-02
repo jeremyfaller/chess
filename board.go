@@ -270,7 +270,7 @@ func (b *Board) isSquareAttacked(c Coord, color Piece) bool {
 	for i := 0; i < 64; i++ {
 		t := Bit(1 << i)
 		if at&t != 0 {
-			if b.doesSquareAttack(CoordFromBit(t), c, color) {
+			if b.doesSquareAttack(CoordFromIdx(i), c, color) {
 				return true
 			}
 		}
