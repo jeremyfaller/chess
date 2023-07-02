@@ -19,8 +19,8 @@ const (
 	Black        = 16
 )
 
-var movesForPiece map[Piece][][][]Coord
-var attacksForPiece map[Piece][][]Bit
+var movesForPiece [][][][]Coord
+var attacksForPiece [][]PsuedoMoves
 
 type Score int
 
@@ -261,9 +261,8 @@ func genMoves(p Piece, c Coord) (allMoves [][]Coord) {
 }
 
 // genAttacks returns a slice of Bit where a piece can attack.
-func genAttacks(p Piece, c Coord) (attacks []Bit) {
+func genAttacks(p Piece, c Coord) (attacks PsuedoMoves) {
 	bit := c.Bit()
-	attacks = make([]Bit, 64)
 	for _, d := range p.AttackDir() {
 		for i, dis, pos := 0, p.AttackDistance(d), c; i < dis; i++ {
 			pos = pos.ApplyDir(d)
@@ -278,15 +277,17 @@ func genAttacks(p Piece, c Coord) (attacks []Bit) {
 
 func init() {
 	// Make the moves/attacks LUT.
-	movesForPiece = make(map[Piece][][][]Coord)
-	attacksForPiece = make(map[Piece][][]Bit)
+	movesForPiece = make([][][][]Coord, Black*2)
+	attacksForPiece = make([][]PsuedoMoves, Black*2)
 	for _, c := range []Piece{Black, White} {
 		for _, p := range []Piece{King, Queen, Rook, Bishop, Knight, Pawn} {
 			p |= c
+			movesForPiece[p] = make([][][]Coord, 64)
+			attacksForPiece[p] = make([]PsuedoMoves, 64)
 			for i := 0; i < 64; i++ {
 				coord := CoordFromIdx(i)
-				movesForPiece[p] = append(movesForPiece[p], genMoves(p, coord))
-				attacksForPiece[p] = append(attacksForPiece[p], genAttacks(p, coord))
+				movesForPiece[p][i] = genMoves(p, coord)
+				attacksForPiece[p][i] = genAttacks(p, coord)
 			}
 		}
 	}
@@ -294,11 +295,11 @@ func init() {
 
 // MovesForPiece returns a slice of slices of all the squares a piece could possibly move for
 // a Piece at a given Coord.
-func MovesForPiece(p Piece, c Coord) [][]Coord {
+func (p Piece) Moves(c Coord) [][]Coord {
 	return movesForPiece[p][c.Idx()]
 }
 
 // AttacksForPiece returns a slice of Bits where a piece could attack if it was at a current location.
-func AttacksForPiece(p Piece, c Coord) []Bit {
+func (p Piece) Attacks(c Coord) PsuedoMoves {
 	return attacksForPiece[p][c.Idx()]
 }

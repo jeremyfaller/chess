@@ -14,7 +14,6 @@ const (
 )
 
 type Spaces [64]Piece
-type PsuedoMoves [64]Bit
 type Hash uint64
 
 const (
@@ -27,50 +26,6 @@ const (
 )
 
 var zLookups [12*64 + 1 + 4 + 8]Hash
-
-// Set sets a position as attacked.
-func (a *PsuedoMoves) Update(p Piece, c Coord) {
-	// If we're clearing a piece, just clear all spaces on the board it attacks.
-	if p == Empty {
-		bit := c.Bit()
-		for i := 0; i < 64; i++ {
-			a[i] &= ^bit
-		}
-		return
-	}
-
-	// Set the attacked bits for the given piece.
-	for i, b := range AttacksForPiece(p, c) {
-		a[i] |= b
-	}
-}
-
-// PossibleMove returns true from attacks to.
-func (a *PsuedoMoves) PossibleMove(from, to Coord) bool {
-	return (a[to.Idx()] & from.Bit()) != 0
-}
-
-// Attackers returns a slice of Coord for all attacking squares.
-func (a *PsuedoMoves) Attackers(c Coord) Bit {
-	return a[c.Idx()]
-}
-
-func (a PsuedoMoves) String() string {
-	var str string
-	for i := 0; i < 64; i++ {
-		str += fmt.Sprintf("%02d\t%064b\n", i, a[i])
-	}
-	return str
-}
-
-func (m *PsuedoMoves) countZeros() (total int) {
-	for _, v := range m {
-		if v != 0 {
-			total += 1
-		}
-	}
-	return total
-}
 
 // BoardState contains the state of the board that's Undoable.
 type BoardState struct {
@@ -313,7 +268,7 @@ func (b *Board) isSquareAttacked(c Coord, color Piece) bool {
 
 	at := b.PseudoMoves(color).Attackers(c)
 	for i := 0; i < 64; i++ {
-		t := Bit(1) << i
+		t := Bit(1 << i)
 		if at&t != 0 {
 			if b.doesSquareAttack(CoordFromBit(t), c, color) {
 				return true
@@ -425,13 +380,11 @@ func (b *Board) isLegalMove(m *Move) bool {
 				return false
 			}
 			m.isEnPassant = true
-			m.captured = Pawn | m.p.OppositeColor()
 			m.isCapture = true
 		} else if p2.Color() == m.p.Color() {
 			// Cannot capture your own color.
 			return false
 		} else {
-			m.captured = p2
 			m.isCapture = true
 		}
 	} else if p2 != Empty {
@@ -439,7 +392,6 @@ func (b *Board) isLegalMove(m *Move) bool {
 		if p2.Color() == m.p.Color() {
 			return false
 		}
-		m.captured = p2
 		m.isCapture = true
 	}
 
@@ -458,7 +410,7 @@ func (b *Board) GetMoves(moves []Move, c Coord) []Move {
 		return moves
 	}
 
-	for _, dirs := range MovesForPiece(p, c) {
+	for _, dirs := range p.Moves(c) {
 		for _, toPos := range dirs {
 			if !toPos.IsValid() {
 				break
@@ -755,6 +707,8 @@ func EmptyBoard() *Board {
 			bkLoc:    InvalidCoord,
 			fullMove: 1,
 		},
+		oldState: make([]BoardState, 0, 200),
+		moves:    make([]Move, 0, 200),
 	}
 }
 

@@ -9,9 +9,6 @@ type Move struct {
 	isCapture   bool
 	isEnPassant bool // true if an en passant capture.
 	isCheck     bool // true if move is check.
-
-	// State for unwinding a move
-	captured Piece
 }
 
 // Color returns the color of the move.

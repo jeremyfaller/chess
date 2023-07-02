@@ -191,7 +191,7 @@ func TestGetMoves(t *testing.T) {
 		if capPiece == Empty {
 			return Move{p: p, from: coord(from), to: coord(to)}
 		}
-		return Move{p: p, from: coord(from), to: coord(to), isCapture: true, captured: capPiece}
+		return Move{p: p, from: coord(from), to: coord(to), isCapture: true}
 	}
 	promo := func(p Piece, from, to string, promo Piece) Move {
 		return Move{p: p, from: coord(from), to: coord(to), promotion: promo}
@@ -735,7 +735,7 @@ func TestCaptureClearsPseudo(t *testing.T) {
 	b.set(Pawn|Black, coord("d7"))
 	b.MakeMove(Move{p: White | Pawn, from: coord("c2"), to: coord("c4")})
 	b.MakeMove(Move{p: Black | Pawn, from: coord("d7"), to: coord("d5")})
-	b.MakeMove(Move{p: White | Pawn, from: coord("c4"), to: coord("d5"), isCapture: true, captured: Black | Pawn})
+	b.MakeMove(Move{p: White | Pawn, from: coord("c4"), to: coord("d5"), isCapture: true})
 	if l := coordsFromBit(b.PseudoMoves(White).Attackers(coord("d5"))); len(l) != 0 {
 		t.Errorf("no white pieces should be attacking: %v", l)
 	}
