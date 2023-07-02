@@ -26,9 +26,9 @@ func (m *Move) IsPromotion() bool {
 		return false
 	}
 	if m.p.IsWhite() {
-		return m.to.y == 7
+		return m.to.Y() == 7
 	}
-	return m.to.y == 0
+	return m.to.Y() == 0
 }
 
 // IsCastle returns true if the move would be a castling move.
@@ -36,7 +36,7 @@ func (m *Move) IsCastle() bool {
 	if !m.p.IsKing() {
 		return false
 	}
-	xDist := m.to.x - m.from.x
+	xDist := m.to.XDist(m.from)
 	return xDist == 2 || xDist == -2
 }
 
@@ -45,7 +45,7 @@ func (m *Move) IsKingsideCastle() bool {
 	if !m.IsCastle() {
 		return false
 	}
-	return m.to.x > m.from.x
+	return m.to.X() > m.from.X()
 }
 
 // IsQueensideCastle returns true if a Move is a queen side castle.
@@ -53,7 +53,7 @@ func (m *Move) IsQueensideCastle() bool {
 	if !m.IsCastle() {
 		return false
 	}
-	return m.to.x < m.from.x
+	return m.to.X() < m.from.X()
 }
 
 // CastleMidCoord returns the Coord for the middle of a castling move.
@@ -61,17 +61,17 @@ func (m *Move) CastleMidCoord() Coord {
 	if !m.IsCastle() {
 		return InvalidCoord
 	}
-	return Coord{(m.to.x + m.from.x) / 2, m.to.y}
+	return CoordFromXY((m.to.X()+m.from.X())/2, m.to.Y())
 }
 
 // RookCoord returns the Coord of the when it's a castling move.
 func (m *Move) RookCoord() Coord {
 	if m.p.IsKing() {
-		xDist := m.to.x - m.from.x
+		xDist := m.to.XDist(m.from)
 		if xDist == 2 {
-			return Coord{x: 7, y: m.to.y}
+			return CoordFromXY(7, m.to.Y())
 		} else if xDist == -2 {
-			return Coord{x: 0, y: m.to.y}
+			return CoordFromXY(0, m.to.Y())
 		}
 	}
 	return InvalidCoord
@@ -81,7 +81,7 @@ func (m Move) castleString() string {
 	if !m.IsCastle() {
 		panic("not a castling move")
 	}
-	xDist := m.to.x - m.from.x
+	xDist := m.to.XDist(m.from)
 	if m.p.IsWhite() {
 		if xDist > 0 {
 			return "O-O"
@@ -143,10 +143,10 @@ func (m Move) String() string {
 
 // IsVertical returns true if a Move is only a vertical move.
 func (m Move) IsVertical() bool {
-	return m.to.x == m.from.x
+	return m.to.X() == m.from.X()
 }
 
 // IsHorizontal returns true if a Move is a horizontal move.
 func (m Move) IsHorizontal() bool {
-	return m.to.y == m.from.y
+	return m.to.Y() == m.from.Y()
 }

@@ -24,14 +24,15 @@ func coordsFromBit(b Bit) []Coord {
 	return ret
 }
 
-type Coord struct {
-	x, y int
-}
+type Coord int
 
-var InvalidCoord = Coord{-1, -1}
+var InvalidCoord = Coord(-1)
 
 func CoordFromIdx(p int) Coord {
-	return Coord{p % 8, p / 8}
+	if p < 0 || p > 63 {
+		return InvalidCoord
+	}
+	return Coord(p)
 }
 
 func CoordFromBit(b Bit) Coord {
@@ -39,18 +40,48 @@ func CoordFromBit(b Bit) Coord {
 }
 
 func (c Coord) IsValid() bool {
-	return c.x >= 0 && c.x <= 7 && c.y >= 0 && c.y <= 7
+	return c >= 0 && c <= 63
 }
 
 func (c Coord) String() string {
 	if !c.IsValid() {
 		return "-"
 	}
-	return fmt.Sprintf("%c%d", noteString[c.x], c.y+1)
+	return fmt.Sprintf("%c%d", noteString[c.X()], c.Y()+1)
 }
 
 func (c Coord) Idx() int {
-	return c.x + c.y*8
+	return int(c)
+}
+
+// Rank returns the rank of a Coord [0..7].
+func (c Coord) Rank() int {
+	return int(c / 8)
+}
+
+// Y returns the y cartesian value of a Coord.
+func (c Coord) Y() int {
+	return int(c / 8)
+}
+
+// File returns the file of a Coord[0..7].
+func (c Coord) File() int {
+	return int(c % 8)
+}
+
+// X returns the x cartesian value of a Coord.
+func (c Coord) X() int {
+	return int(c % 8)
+}
+
+// XDist returns the x-distance between two Coords.
+func (c Coord) XDist(c2 Coord) int {
+	return c.X() - c2.X()
+}
+
+// YDist returns the y-distance between two Coords.
+func (c Coord) YDist(c2 Coord) int {
+	return c.Y() - c2.Y()
 }
 
 // Bit returns a unique bit for a given Coord.
@@ -58,60 +89,68 @@ func (c Coord) Bit() Bit {
 	return Bit(1) << c.Idx()
 }
 
+// CoordFromXY returns a Coord from an x/y pair.
+func CoordFromXY(x, y int) Coord {
+	if x < 0 || x > 7 || y < 0 || y > 7 {
+		return InvalidCoord
+	}
+	return Coord(x + y*8)
+}
+
 func (c Coord) ApplyDir(d Dir) Coord {
 	switch d {
 	case N:
-		return Coord{c.x, c.y + 1}
+		return CoordFromXY(c.X(), c.Y()+1)
 	case NE:
-		return Coord{c.x + 1, c.y + 1}
+		return CoordFromXY(c.X()+1, c.Y()+1)
 	case E:
-		return Coord{c.x + 1, c.y}
+		return CoordFromXY(c.X()+1, c.Y())
 	case SE:
-		return Coord{c.x + 1, c.y - 1}
+		return CoordFromXY(c.X()+1, c.Y()-1)
 	case S:
-		return Coord{c.x, c.y - 1}
+		return CoordFromXY(c.X(), c.Y()-1)
 	case SW:
-		return Coord{c.x - 1, c.y - 1}
+		return CoordFromXY(c.X()-1, c.Y()-1)
 	case W:
-		return Coord{c.x - 1, c.y}
+		return CoordFromXY(c.X()-1, c.Y())
 	case NW:
-		return Coord{c.x - 1, c.y + 1}
+		return CoordFromXY(c.X()-1, c.Y()+1)
 
 	// knight moves
 	case NNE:
-		return Coord{c.x + 1, c.y + 2}
+		return CoordFromXY(c.X()+1, c.Y()+2)
 	case NEE:
-		return Coord{c.x + 2, c.y + 1}
+		return CoordFromXY(c.X()+2, c.Y()+1)
 	case SEE:
-		return Coord{c.x + 2, c.y - 1}
+		return CoordFromXY(c.X()+2, c.Y()-1)
 	case SSE:
-		return Coord{c.x + 1, c.y - 2}
+		return CoordFromXY(c.X()+1, c.Y()-2)
 	case SSW:
-		return Coord{c.x - 1, c.y - 2}
+		return CoordFromXY(c.X()-1, c.Y()-2)
 	case SWW:
-		return Coord{c.x - 2, c.y - 1}
+		return CoordFromXY(c.X()-2, c.Y()-1)
 	case NWW:
-		return Coord{c.x - 2, c.y + 1}
+		return CoordFromXY(c.X()-2, c.Y()+1)
 	case NNW:
-		return Coord{c.x - 1, c.y + 2}
+		return CoordFromXY(c.X()-1, c.Y()+2)
 
 	// castle moves
 	case E2:
-		if c.x != 4 {
+		if c.X() != 4 {
 			return InvalidCoord
 		}
-		return Coord{c.x + 2, c.y}
+		return CoordFromXY(c.X()+2, c.Y())
 	case W2:
-		if c.x != 4 {
+		if c.X() != 4 {
 			return InvalidCoord
 		}
-		return Coord{c.x - 2, c.y}
+		return CoordFromXY(c.X()-2, c.Y())
 
 	// pawn moves
 	case NN:
-		return Coord{c.x, c.y + 2}
+		return CoordFromXY(c.X(), c.Y()+2)
 	case SS:
-		return Coord{c.x, c.y - 2}
+		return CoordFromXY(c.X(), c.Y()-2)
 	}
 	panic("not handled")
 }
@@ -132,7 +171,7 @@ func CoordFromString(s string) (Coord, error) {
 	if c := int(s[1] - '0'); c < 1 || c > 8 {
 		return InvalidCoord, fmt.Errorf("invalid coord: %q", s)
 	} else {
-		return Coord{int(s[0] - 'a'), int(s[1] - '1')}, nil
+		return CoordFromXY(int(s[0]-'a'), int(s[1]-'1')), nil
 	}
 }
 
@@ -151,7 +190,7 @@ func (c Coord) FileIdx() int {
 	if c == InvalidCoord {
 		panic("file idx on an invalid coord")
 	}
-	return c.x
+	return c.X()
 }
 
 // dirs is an array of LUTs, one for each square. For each of the squares, it

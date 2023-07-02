@@ -708,8 +708,8 @@ func TestPseudoMoves(t *testing.T) {
 
 				// Pawns might not always attack something.
 				if p == Pawn {
-					if c == White && coord.y == 7 ||
-						c == Black && coord.y == 0 {
+					if c == White && coord.Y() == 7 ||
+						c == Black && coord.Y() == 0 {
 						continue
 					}
 				}

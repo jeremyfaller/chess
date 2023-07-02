@@ -41,3 +41,49 @@ func (d Dir) IsKnight() bool {
 		return false
 	}
 }
+
+func (d Dir) String() string {
+	switch d {
+	case N:
+		return "N"
+	case NE:
+		return "NE"
+	case E:
+		return "E"
+	case SE:
+		return "SE"
+	case S:
+		return "S"
+	case SW:
+		return "SW"
+	case W:
+		return "W"
+	case NW:
+		return "NW"
+	case NNE:
+		return "NNE"
+	case NEE:
+		return "NEE"
+	case SEE:
+		return "SEE"
+	case SSE:
+		return "SSE"
+	case SSW:
+		return "SSW"
+	case SWW:
+		return "SWW"
+	case NWW:
+		return "NWW"
+	case NNW:
+		return "NNW"
+	case E2:
+		return "E2"
+	case W2:
+		return "W2"
+	case NN:
+		return "NN"
+	case SS:
+		return "SS"
+	}
+	panic("unhandled direction")
+}

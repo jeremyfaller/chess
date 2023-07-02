@@ -145,7 +145,7 @@ func (b *Board) Print() {
 		println("  +-+-+-+-+-+-+-+-+")
 		print(y+1, " ")
 		for x := 0; x < 8; x++ {
-			print("|", b.at(Coord{x, y}).String())
+			print("|", b.at(CoordFromXY(x, y)).String())
 		}
 		println("|")
 	}
@@ -198,7 +198,7 @@ func (b *Board) FENString() string {
 	// Print the board.
 	for y := 7; y >= 0; y-- {
 		for x := 0; x <= 7; x++ {
-			c := Coord{x, y}
+			c := CoordFromXY(x, y)
 			if p := b.at(c); p.IsEmpty() {
 				empty += 1
 				continue
@@ -386,7 +386,7 @@ func (b *Board) isLegalMove(m *Move) bool {
 				return false
 			}
 			if m.IsQueensideCastle() { // also check on knight for O-O-O.
-				if b.at(Coord{m.to.x - 1, m.to.y}) != Empty {
+				if b.at(CoordFromXY(m.to.X()-1, m.to.Y())) != Empty {
 					return false
 				}
 			}
@@ -400,16 +400,16 @@ func (b *Board) isLegalMove(m *Move) bool {
 
 	if m.p.IsPawn() {
 		if m.IsVertical() {
-			dist := m.to.y - m.from.y
+			dist := m.to.Y() - m.from.Y()
 			if dist == 2 || dist == -2 {
 				// Pawns can't move 2 spaces if it's not from the start location.
-				if m.p.Color() == White && m.from.y != 1 ||
-					m.p.Color() == Black && m.from.y != 6 {
+				if m.p.Color() == White && m.from.Y() != 1 ||
+					m.p.Color() == Black && m.from.Y() != 6 {
 					return false
 				}
 
 				// Pawns can't move through a piece.
-				mid := Coord{m.from.x, (m.from.y + m.to.y) / 2}
+				mid := CoordFromXY(m.from.X(), (m.from.Y()+m.to.Y())/2)
 				if b.at(mid) != Empty {
 					return false
 				}
@@ -519,9 +519,9 @@ func (b *Board) PossibleMoves(moves []Move) []Move {
 // epTarget returns the en passant target of a Move if the move was a pawn
 // move, otherwise it returns InvalidCoord
 func epTarget(m Move) Coord {
-	distY := (m.to.y - m.from.y)
+	distY := (m.to.Y() - m.from.Y())
 	if m.p.IsPawn() && (distY == 2 || distY == -2) {
-		return Coord{m.to.x, (m.to.y + m.from.y) / 2}
+		return CoordFromXY(m.to.X(), (m.to.Y()+m.from.Y())/2)
 	}
 	return InvalidCoord
 }
@@ -534,16 +534,16 @@ func (b *Board) handleRookMoveOrCapture(c Coord) {
 		return
 	}
 
-	if p.IsWhite() && c.y == 0 {
-		if c.x == 0 {
+	if p.IsWhite() && c.Y() == 0 {
+		if c.X() == 0 {
 			b.state.wOOO = false
-		} else if c.x == 7 {
+		} else if c.X() == 7 {
 			b.state.wOO = false
 		}
-	} else if p.IsBlack() && c.y == 7 {
-		if c.x == 0 {
+	} else if p.IsBlack() && c.Y() == 7 {
+		if c.X() == 0 {
 			b.state.bOOO = false
-		} else if c.x == 7 {
+		} else if c.X() == 7 {
 			b.state.bOO = false
 		}
 	}
@@ -628,10 +628,11 @@ func (b *Board) MakeMove(m Move) {
 	}
 	if !m.IsPromotion() {
 		if m.IsCastle() {
-			dist := m.to.x - m.from.x
-			rookFrom, rookTo := Coord{7, m.from.y}, Coord{5, m.from.y}
+			dist := m.to.X() - m.from.X()
+			rookFrom, rookTo := CoordFromXY(7, m.from.Y()), CoordFromXY(5, m.from.Y())
 			if dist < 0 { // queenside
-				rookFrom.x, rookTo.x = 0, 3
+				rookFrom = CoordFromXY(0, rookFrom.Y())
+				rookTo = CoordFromXY(3, rookTo.Y())
 			}
 			b.set(Empty, rookFrom)
 			b.set(m.p.Color()|Rook, rookTo)
@@ -639,9 +640,9 @@ func (b *Board) MakeMove(m Move) {
 		if m.isEnPassant { // Need to remove captured pawn.
 			c := m.to
 			if m.p.Color() == White {
-				c.y = 4
+				c = CoordFromXY(c.X(), 4)
 			} else {
-				c.y = 3
+				c = CoordFromXY(c.X(), 3)
 			}
 			b.set(Empty, c)
 		}
@@ -667,32 +668,6 @@ func (b *Board) UnmakeMove() {
 	b.moves = b.moves[:len(b.moves)-1]
 	b.state = b.oldState[len(b.oldState)-1]
 	b.oldState = b.oldState[:len(b.oldState)-1]
-
-	/*
-		// And fix board state.
-		b.set(Empty, m.to)
-		b.set(m.p, m.from)
-		if m.isCapture {
-			l := m.to
-			if m.isEnPassant {
-				if m.p.Color() == White {
-					l.y -= 1
-				} else {
-					l.y += 1
-				}
-			}
-			b.set(m.captured, l)
-		} else if c := m.RookCoord(); c != InvalidCoord {
-			b.set(Empty, m.CastleMidCoord())
-			b.set(m.p.Color()|Rook, m.RookCoord())
-		}
-
-		b.updateChecks()
-
-		// Fix game state.
-		b.state = b.oldState[len(b.oldState)-1]
-		b.oldState = b.oldState[:len(b.oldState)-1]
-	*/
 }
 
 // GetMove gets a move given two coordinates.
@@ -790,22 +765,6 @@ func New() *Board {
 		panic(err)
 	}
 	return b
-	/*
-		b := EmptyBoard()
-		b.state.turn = White
-		b.state.wOO = true
-		b.state.wOOO = true
-		b.state.bOO = true
-		b.state.bOOO = true
-		pieces := []Piece{Rook, Knight, Bishop, Queen, King, Bishop, Knight, Rook}
-		for x, p := range pieces {
-			b.set(p|White, Coord{x, 0})
-			b.set(Pawn|White, Coord{x, 1})
-			b.set(Pawn|Black, Coord{x, 6})
-			b.set(p|Black, Coord{x, 7})
-		}
-		return b
-	*/
 }
 
 var runeToPiece = map[rune]Piece{
@@ -836,7 +795,7 @@ func (b *Board) validate() error {
 // FromFEN creates a Board from a FEN string.
 func FromFEN(s string) (*Board, error) {
 	b := EmptyBoard()
-	coord := Coord{0, 7}
+	coord := CoordFromXY(0, 7)
 	parts := strings.Fields(s)
 
 	if len(parts) != 6 {
@@ -856,10 +815,10 @@ func FromFEN(s string) (*Board, error) {
 				return nil, errors.New(fmt.Sprintf("didn't find %v", c))
 			}
 		}
-		coord = Coord{
-			(coord.x + inc) % 8,
-			(coord.y - (coord.x+inc)/8),
-		}
+		coord = CoordFromXY(
+			(coord.X()+inc)%8,
+			(coord.Y() - (coord.X()+inc)/8),
+		)
 	}
 
 	// Parse turn.
