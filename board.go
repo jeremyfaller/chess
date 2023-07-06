@@ -656,7 +656,7 @@ func (b *Board) Perft(origDepth int) uint64 {
 	moveQueue := make([][]Move, origDepth)
 
 	// Keep around a set of counts.
-	counts := make(map[perftHash]uint64)
+	counts := make(map[perftHash]uint64, 1000000)
 
 	var perft func(int, bool) uint64
 	perft = func(d int, s bool) uint64 {
@@ -683,8 +683,8 @@ func (b *Board) Perft(origDepth int) uint64 {
 				cnt = v
 			} else {
 				cnt = perft(d-1, false)
+				counts[h] = cnt
 			}
-			counts[h] = cnt
 
 			if s {
 				fmt.Printf("%v: %d\n", move, cnt)
