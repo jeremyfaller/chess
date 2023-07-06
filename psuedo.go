@@ -25,14 +25,14 @@ func (a *PsuedoMoves) Update(p Piece, c Coord) {
 	// Set the attacked bits for the given piece.
 	attacks := p.Attacks(c)
 	for i := 0; i < 64; i += 8 {
-		a[i+0] |= attacks[i+0]
-		a[i+1] |= attacks[i+1]
-		a[i+2] |= attacks[i+2]
-		a[i+3] |= attacks[i+3]
-		a[i+4] |= attacks[i+4]
-		a[i+5] |= attacks[i+5]
-		a[i+6] |= attacks[i+6]
-		a[i+7] |= attacks[i+7]
+		a[i+0] |= (*attacks)[i+0]
+		a[i+1] |= (*attacks)[i+1]
+		a[i+2] |= (*attacks)[i+2]
+		a[i+3] |= (*attacks)[i+3]
+		a[i+4] |= (*attacks)[i+4]
+		a[i+5] |= (*attacks)[i+5]
+		a[i+6] |= (*attacks)[i+6]
+		a[i+7] |= (*attacks)[i+7]
 	}
 }
 
