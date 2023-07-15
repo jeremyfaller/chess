@@ -44,6 +44,9 @@ type BoardState struct {
 	// Bitfields stating if white or black attack a given square.
 	wPseudos PsuedoMoves
 	bPseudos PsuedoMoves
+
+	// Is this space occupied?
+	occ Bit
 }
 
 type Board struct {
@@ -81,9 +84,11 @@ func (b *Board) set(p Piece, c Coord) {
 		}
 	}
 	if p == Empty {
+		b.state.occ.Clear(idx)
 		b.PseudoMoves(White).Update(p, c)
 		b.PseudoMoves(Black).Update(p, c)
 	} else {
+		b.state.occ.Set(idx)
 		b.PseudoMoves(p).Update(p, c)
 	}
 	b.state.spaces[idx] = p

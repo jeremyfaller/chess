@@ -741,6 +741,26 @@ func TestCaptureClearsPseudo(t *testing.T) {
 	}
 }
 
+func TestOccupancy(t *testing.T) {
+	tests := []struct {
+		fen string
+		occ Bit
+	}{
+		{"k7/8/8/8/8/r7/R7/K7 b - - 0 1", 0x0100000000010101},
+		{"7k/8/8/8/8/r7/R7/K7 b - - 0 1", 0x8000000000010101},
+	}
+
+	for _, test := range tests {
+		b, err := FromFEN(test.fen)
+		if err != nil {
+			t.Errorf("error making board: %v", err)
+		}
+		if b.state.occ != test.occ {
+			t.Errorf("expected occupancy = %016x, got %016x", test.occ.Uint64(), b.state.occ.Uint64())
+		}
+	}
+}
+
 func TestSimpleScore(t *testing.T) {
 	tests := []struct {
 		desc  string
