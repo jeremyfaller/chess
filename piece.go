@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"strings"
 )
 
 type Piece uint8
@@ -70,31 +69,34 @@ func (p Piece) Colorless() Piece {
 }
 
 func (p Piece) String() string {
-	if p == Empty {
-		return " "
+	black, white, reset := "\033[31m", "\033[37m", "\033[0m"
+	switch p {
+	case White | Pawn:
+		return white + "P" + reset
+	case White | Knight:
+		return white + "N" + reset
+	case White | Bishop:
+		return white + "B" + reset
+	case White | Rook:
+		return white + "R" + reset
+	case White | Queen:
+		return white + "Q" + reset
+	case White | King:
+		return white + "K" + reset
+	case Black | Pawn:
+		return black + "P" + reset
+	case Black | Knight:
+		return black + "N" + reset
+	case Black | Bishop:
+		return black + "B" + reset
+	case Black | Rook:
+		return black + "R" + reset
+	case Black | Queen:
+		return black + "Q" + reset
+	case Black | King:
+		return black + "K" + reset
 	}
-	printer := strings.ToUpper
-	if p.IsBlack() {
-		printer = strings.ToLower
-	}
-	switch p.Colorless() {
-	case Pawn:
-		return printer("P")
-	case Knight:
-		return printer("N")
-	case Bishop:
-		return printer("B")
-	case Rook:
-		return printer("R")
-	case Queen:
-		return printer("Q")
-	case King:
-		return printer("K")
-	}
-	if p.Color() == White {
-		return "WHITE"
-	}
-	return "BLACK"
+	return " "
 }
 
 func (p Piece) IsEmpty() bool {
@@ -300,6 +302,6 @@ func (p Piece) Moves(c Coord) [][]Coord {
 }
 
 // AttacksForPiece returns a slice of Bits where a piece could attack if it was at a current location.
-func (p Piece) Attacks(c Coord) PsuedoMoves {
-	return attacksForPiece[p][c.Idx()]
+func (p Piece) Attacks(c Coord) *PsuedoMoves {
+	return &attacksForPiece[p][c.Idx()]
 }
