@@ -3,29 +3,18 @@ package main
 import (
 	"errors"
 	"fmt"
-	"math/rand"
 	"strconv"
 	"strings"
 	"unicode"
 )
+
+//go:generate go run zobrist_gen.go
 
 const (
 	StartingFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 )
 
 type Spaces [64]Piece
-type Hash uint64
-
-const (
-	zBlack = iota + 12*64
-	zWOO
-	zWOOO
-	zBOO
-	zBOOO
-	zEP
-)
-
-var zLookups [12*64 + 1 + 4 + 8]Hash
 
 // BoardState contains the state of the board that's Undoable.
 type BoardState struct {
@@ -888,11 +877,4 @@ func (b *Board) reversePlayers() *Board {
 		panic(err)
 	}
 	return b2
-}
-
-func init() {
-	r := rand.New(rand.NewSource(99))
-	for i := range zLookups {
-		zLookups[i] = Hash(r.Uint64())
-	}
 }
