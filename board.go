@@ -31,8 +31,8 @@ type BoardState struct {
 	isWCheck, isBCheck   bool
 
 	// Bitfields stating if white or black attack a given square.
-	wPseudos PsuedoMoves
-	bPseudos PsuedoMoves
+	wPsuedos PsuedoMoves
+	bPsuedos PsuedoMoves
 
 	// Is this space occupied?
 	occ Bit
@@ -184,9 +184,9 @@ func (b *Board) PsuedoMoves(p Piece) *PsuedoMoves {
 		panic("empty")
 	}
 	if p.Color() == White {
-		return &b.state.wPseudos
+		return &b.state.wPsuedos
 	}
-	return &b.state.bPseudos
+	return &b.state.bPsuedos
 }
 
 // IsKingInCheck returns true if the given piece's color's king is in check.
