@@ -27,11 +27,11 @@ var (
 	blackPawnAttackDir = []Dir{SE, SW}
 )
 
-// AttackDir returns a slice of Dir in which a Piece attacks.
-func (p Piece) AttackDir() []Dir {
+// attackDir returns a slice of Dir in which a Piece attacks.
+func (p Piece) attackDir() []Dir {
 	switch p.Colorless() {
 	case Queen, Rook, Bishop, Knight:
-		return p.MoveDir()
+		return p.moveDir()
 	case King:
 		return kingAttackDir
 	case Pawn:
@@ -44,8 +44,8 @@ func (p Piece) AttackDir() []Dir {
 	panic("direction not set up for piece " + p.String())
 }
 
-// MoveDir returns a slice of Dir in which a Piece moves.
-func (p Piece) MoveDir() []Dir {
+// moveDir returns a slice of Dir in which a Piece moves.
+func (p Piece) moveDir() []Dir {
 	switch p.Colorless() {
 	case Queen:
 		return queenDir
@@ -67,19 +67,8 @@ func (p Piece) MoveDir() []Dir {
 	panic("direction not set up for piece " + p.String())
 }
 
-// isSlider returns true if a piece is a sliding piece, ie it can move more
-// than one space in a given direciton.
-func (p Piece) isSlider() bool {
-	switch p.Colorless() {
-	case Bishop, Rook, Queen:
-		return true
-	default:
-		return false
-	}
-}
-
-// AttackDistance returns the distance a piece can attack in a given direction.
-func (p Piece) AttackDistance(d Dir) int {
+// attackDistance returns the distance a piece can attack in a given direction.
+func (p Piece) attackDistance(d Dir) int {
 	switch p.Colorless() {
 	case Knight, King, Pawn:
 		return 1
@@ -88,38 +77,26 @@ func (p Piece) AttackDistance(d Dir) int {
 	}
 }
 
-// SlideDistance returns the distance a piece can slide.
-func (p Piece) SlideDistance() int {
-	if !p.isSlider() {
-		return 1
-	}
-	return 8 // can slide upto the whole board.
-}
-
 // genMoves generates the set of moves for a piece at a coordinate.
-func genMoves(p Piece, c Coord) (allMoves [][]Coord) {
-	for _, d := range p.MoveDir() {
-		pos := c
-		moves := []Coord{}
-		for i, dis := 0, p.SlideDistance(); i < dis; i++ {
-			pos = pos.ApplyDir(d)
-			if !pos.IsValid() {
-				break
-			}
-			moves = append(moves, pos)
-		}
-		if len(moves) != 0 {
-			allMoves = append(allMoves, moves)
-		}
+func genMoves(p Piece, c Coord) (moves []Coord) {
+	if p.isSlider() {
+		return moves
 	}
-	return allMoves
+	for _, d := range p.moveDir() {
+		pos := c.ApplyDir(d)
+		if !pos.IsValid() {
+			continue
+		}
+		moves = append(moves, pos)
+	}
+	return moves
 }
 
 // genAttacks returns a slice of Bit where a piece can attack.
 func genAttacks(p Piece, c Coord) (attacks [64]Bit) {
 	bit := c.Bit()
-	for _, d := range p.AttackDir() {
-		for i, dis, pos := 0, p.AttackDistance(d), c; i < dis; i++ {
+	for _, d := range p.attackDir() {
+		for i, dis, pos := 0, p.attackDistance(d), c; i < dis; i++ {
 			pos = pos.ApplyDir(d)
 			if !pos.IsValid() {
 				break
@@ -132,32 +109,33 @@ func genAttacks(p Piece, c Coord) (attacks [64]Bit) {
 
 func gen(w io.Writer) {
 	// Make the moves/attacks LUT.
-	movesForPiece := make([][][][]Coord, Black*2)
+	movesForPiece := make([][][]Coord, Black*2)
 	attacksForPiece := make([][][64]Bit, Black*2)
 	for _, c := range []Piece{Black, White} {
-		for _, p := range []Piece{King, Queen, Rook, Bishop, Knight, Pawn} {
+		for _, p := range []Piece{Pawn, Knight, King, Bishop, Rook, Queen} {
 			p |= c
-			movesForPiece[p] = make([][][]Coord, 64)
 			attacksForPiece[p] = make([][64]Bit, 64)
 			for i := 0; i < 64; i++ {
 				coord := CoordFromIdx(i)
-				movesForPiece[p][i] = genMoves(p, coord)
 				attacksForPiece[p][i] = genAttacks(p, coord)
+			}
+			if !p.isSlider() {
+				movesForPiece[p] = make([][]Coord, 64)
+				for i := 0; i < 64; i++ {
+					coord := CoordFromIdx(i)
+					movesForPiece[p][i] = genMoves(p, coord)
+				}
 			}
 		}
 	}
 
-	fmt.Fprintf(w, "var movesForPiece = [][][][]Coord {\n")
+	fmt.Fprintf(w, "var movesForPiece = [][][]Coord {\n")
 	for i := range movesForPiece {
-		fmt.Fprintf(w, "\t[][][]Coord {\n")
+		fmt.Fprintf(w, "\t[][]Coord {\n")
 		for j := range movesForPiece[i] {
-			fmt.Fprintf(w, "\t\t[][]Coord {\n")
+			fmt.Fprintf(w, "\t\t[]Coord {")
 			for k := range movesForPiece[i][j] {
-				fmt.Fprintf(w, "\t\t\t[]Coord {")
-				for m := range movesForPiece[i][j][k] {
-					fmt.Fprintf(w, " %d,", movesForPiece[i][j][k][m].Idx())
-				}
-				fmt.Fprintf(w, "},")
+				fmt.Fprintf(w, " %d,", movesForPiece[i][j][k].Idx())
 			}
 			fmt.Fprintf(w, "\t\t},\n")
 		}
@@ -200,7 +178,13 @@ var header = `package main
 
 // MovesForPiece returns a slice of slices of all the squares a piece could possibly move for
 // a Piece at a given Coord.
-func (p Piece) Moves(c Coord) [][]Coord {
+func (p Piece) Moves(c Coord, occ Bit) []Coord {
+	if p.isSlider() {
+		if p.Colorless() == Bishop {
+			return BishopLookup(c, occ)
+		}
+		return RookLookup(c, occ)
+	}
 	return movesForPiece[p][c.Idx()]
 }
 

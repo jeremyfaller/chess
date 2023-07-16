@@ -10,10 +10,10 @@ const (
 	Empty  Piece = 0
 	Pawn         = 1
 	Knight       = 2
-	Bishop       = 3
-	Rook         = 4
-	Queen        = 5
-	King         = 6
+	King         = 3
+	Bishop       = 4
+	Rook         = 5
+	Queen        = 6
 	White        = 8
 	Black        = 16
 )
@@ -143,6 +143,17 @@ func (p Piece) Color() Piece {
 
 func (p Piece) OppositeColor() Piece {
 	return p.Color() ^ (White | Black)
+}
+
+// isSlider returns true if a piece is a sliding piece, ie it can move more
+// than one space in a given direciton.
+func (p Piece) isSlider() bool {
+	switch p.Colorless() {
+	case Bishop, Rook, Queen:
+		return true
+	default:
+		return false
+	}
 }
 
 // HashIdx returns number [0..11] for the piece.

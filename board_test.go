@@ -1,6 +1,7 @@
 package main
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/kylelemons/godebug/pretty"
@@ -696,6 +697,46 @@ func TestPossibleMoves(t *testing.T) {
 				t.Errorf("[%d] %s move: %v, not found", i, test.desc, move)
 			}
 		}
+	}
+}
+
+func TestQueenMoves(t *testing.T) {
+	b, err := FromFEN("k7/8/8/3Q4/8/8/8/K7 w - - 1 1")
+	p := Piece(White | Queen)
+	coord := testingCoordFunc(t)
+	moves := []Move{
+		Move{p: p, from: coord("d5"), to: coord("h1"), isCheck: true},
+		Move{p: p, from: coord("d5"), to: coord("a2"), isCheck: true},
+		Move{p: p, from: coord("d5"), to: coord("g2"), isCheck: true},
+		Move{p: p, from: coord("d5"), to: coord("b3"), isCheck: false},
+		Move{p: p, from: coord("d5"), to: coord("f3"), isCheck: true},
+		Move{p: p, from: coord("d5"), to: coord("c4"), isCheck: false},
+		Move{p: p, from: coord("d5"), to: coord("e4"), isCheck: true},
+		Move{p: p, from: coord("d5"), to: coord("c6"), isCheck: true},
+		Move{p: p, from: coord("d5"), to: coord("e6"), isCheck: false},
+		Move{p: p, from: coord("d5"), to: coord("b7"), isCheck: true},
+		Move{p: p, from: coord("d5"), to: coord("f7"), isCheck: false},
+		Move{p: p, from: coord("d5"), to: coord("g8"), isCheck: true},
+		Move{p: p, from: coord("d5"), to: coord("d1"), isCheck: false},
+		Move{p: p, from: coord("d5"), to: coord("d2"), isCheck: false},
+		Move{p: p, from: coord("d5"), to: coord("d3"), isCheck: false},
+		Move{p: p, from: coord("d5"), to: coord("d4"), isCheck: false},
+		Move{p: p, from: coord("d5"), to: coord("a5"), isCheck: true},
+		Move{p: p, from: coord("d5"), to: coord("b5"), isCheck: false},
+		Move{p: p, from: coord("d5"), to: coord("c5"), isCheck: false},
+		Move{p: p, from: coord("d5"), to: coord("e5"), isCheck: false},
+		Move{p: p, from: coord("d5"), to: coord("f5"), isCheck: false},
+		Move{p: p, from: coord("d5"), to: coord("g5"), isCheck: false},
+		Move{p: p, from: coord("d5"), to: coord("h5"), isCheck: false},
+		Move{p: p, from: coord("d5"), to: coord("d6"), isCheck: false},
+		Move{p: p, from: coord("d5"), to: coord("d7"), isCheck: false},
+		Move{p: p, from: coord("d5"), to: coord("d8"), isCheck: true},
+	}
+	if err != nil {
+		t.Errorf("error making board: %v", err)
+	}
+	if res := b.GetMoves(nil, coord("d5")); !reflect.DeepEqual(moves, res) {
+		t.Errorf("GetMoves(nil, d5) = %v, expected = %v", res, moves)
 	}
 }
 

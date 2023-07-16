@@ -386,6 +386,10 @@ func (b *Board) isLegalMove(m *Move) bool {
 		if p2.Color() == m.p.Color() {
 			return false
 		}
+		// Can't take a king.
+		if p2.Colorless() == King {
+			return false
+		}
 		m.isCapture = true
 	}
 
@@ -404,48 +408,52 @@ func (b *Board) GetMoves(moves []Move, c Coord) []Move {
 		return moves
 	}
 
-	for _, dirs := range p.Moves(c) {
-		for _, toPos := range dirs {
-			if !toPos.IsValid() {
-				break
-			}
+	// A queen move is the same as a rook and bishop move.
+	// Rather than a more complicated code structure involving
+	// possible allocations, the cleanest way to do these two
+	// piece check is with a goto.
+	pCheck := p
+	if p.Colorless() == Queen {
+		pCheck = Bishop | p.Color()
+	}
 
-			// If we'd overlap one our own pieces, no need to check further.
-			if b.at(toPos).Color() == p.Color() {
-				break
-			}
+queenCheckRook:
+	for _, toPos := range pCheck.Moves(c, b.state.occ) {
+		// If we'd overlap one our own pieces, skip it.
+		if b.at(toPos).Color() == p.Color() {
+			continue
+		}
 
-			move := Move{
-				p:    p,
-				to:   toPos,
-				from: c,
-			}
+		move := Move{
+			p:    p,
+			to:   toPos,
+			from: c,
+		}
 
-			// If the move would be illegal, we keep checking as a different move in
-			// this direction might be legal.
-			if !b.isLegalMove(&move) {
-				if b.at(toPos) == Empty {
-					continue
-				} else {
-					break
-				}
-			}
+		// If the move would be illegal, we keep checking as a different move in
+		// this direction might be legal.
+		if !b.isLegalMove(&move) {
+			continue
+		}
 
-			// It's a legal move.
-			if !move.IsPromotion() {
+		// It's a legal move.
+		if !move.IsPromotion() {
+			moves = append(moves, move)
+		} else {
+			// Add a promotion for each piece.
+			for _, promotion := range []Piece{Knight, Bishop, Rook, Queen} {
+				move.promotion = promotion | p.Color()
 				moves = append(moves, move)
-			} else {
-				// Add a promotion for each piece.
-				for _, promotion := range []Piece{Knight, Bishop, Rook, Queen} {
-					move.promotion = promotion | p.Color()
-					moves = append(moves, move)
-				}
-			}
-			if move.isCapture { // stop looking when you'd take a piece.
-				break
 			}
 		}
 	}
+
+	// See above for why we use a goto here.
+	if p.Colorless() == Queen && pCheck.Colorless() == Bishop {
+		pCheck = Rook | p.Color()
+		goto queenCheckRook
+	}
+
 	return moves
 }
 
