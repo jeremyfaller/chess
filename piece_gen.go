@@ -110,14 +110,14 @@ func genAttacks(p Piece, c Coord) (attacks [64]Bit) {
 func gen(w io.Writer) {
 	// Make the moves/attacks LUT.
 	movesForPiece := make([][][]Coord, Black*2)
-	attacksForPiece := make([][][64]Bit, Black*2)
+	psuedosForPiece := make([][][64]Bit, Black*2)
 	for _, c := range []Piece{Black, White} {
 		for _, p := range []Piece{Pawn, Knight, King, Bishop, Rook, Queen} {
 			p |= c
-			attacksForPiece[p] = make([][64]Bit, 64)
+			psuedosForPiece[p] = make([][64]Bit, 64)
 			for i := 0; i < 64; i++ {
 				coord := CoordFromIdx(i)
-				attacksForPiece[p][i] = genAttacks(p, coord)
+				psuedosForPiece[p][i] = genAttacks(p, coord)
 			}
 			if !p.isSlider() {
 				movesForPiece[p] = make([][]Coord, 64)
@@ -143,13 +143,13 @@ func gen(w io.Writer) {
 	}
 	fmt.Fprintf(w, "}\n\n")
 
-	fmt.Fprintf(w, "var attacksForPiece = [][]PsuedoMoves {\n")
-	for i := range attacksForPiece {
+	fmt.Fprintf(w, "var psuedosForPiece = [][]PsuedoMoves {\n")
+	for i := range psuedosForPiece {
 		fmt.Fprintf(w, "\t[]PsuedoMoves{\n")
-		for j := range attacksForPiece[i] {
+		for j := range psuedosForPiece[i] {
 			fmt.Fprintf(w, "\t\t[64]Bit{")
-			for k := range attacksForPiece[i][j] {
-				fmt.Fprintf(w, " 0x%x,", attacksForPiece[i][j][k].Uint64())
+			for k := range psuedosForPiece[i][j] {
+				fmt.Fprintf(w, " 0x%x,", psuedosForPiece[i][j][k].Uint64())
 			}
 			fmt.Fprintf(w, "\t\t},\n")
 		}
@@ -188,8 +188,8 @@ func (p Piece) Moves(c Coord, occ Bit) []Coord {
 	return movesForPiece[p][c.Idx()]
 }
 
-// AttacksForPiece returns a slice of Bits where a piece could attack if it was at a current location.
-func (p Piece) Attacks(c Coord) *PsuedoMoves {
-	return &attacksForPiece[p][c.Idx()]
+// Psuedos returns a slice of Bits where a piece could attack if it was at a current location.
+func (p Piece) Psuedos(c Coord) *PsuedoMoves {
+	return &psuedosForPiece[p][c.Idx()]
 }
 `

@@ -740,7 +740,7 @@ func TestQueenMoves(t *testing.T) {
 	}
 }
 
-func TestPseudoMoves(t *testing.T) {
+func TestPsuedoMoves(t *testing.T) {
 	b := EmptyBoard()
 	for _, p := range []Piece{Pawn, Knight, Bishop, Rook, Queen, King} {
 		for _, c := range []Piece{White, Black} {
@@ -756,12 +756,12 @@ func TestPseudoMoves(t *testing.T) {
 				}
 
 				b.set(p|c, coord)
-				if b.PseudoMoves(c).countZeros() == 0 {
+				if b.PsuedoMoves(c).countZeros() == 0 {
 					t.Errorf("error setting: %v %v", p|c, coord)
 				}
 
 				b.set(Empty, coord)
-				if b.PseudoMoves(c).countZeros() != 0 {
+				if b.PsuedoMoves(c).countZeros() != 0 {
 					t.Errorf("error emptying: %v %v", p|c, coord)
 				}
 			}
@@ -769,7 +769,7 @@ func TestPseudoMoves(t *testing.T) {
 	}
 }
 
-func TestCaptureClearsPseudo(t *testing.T) {
+func TestCaptureClearsPsuedo(t *testing.T) {
 	coord := testingCoordFunc(t)
 	b := EmptyBoard()
 	b.set(Pawn|White, coord("c2"))
@@ -777,7 +777,7 @@ func TestCaptureClearsPseudo(t *testing.T) {
 	b.MakeMove(Move{p: White | Pawn, from: coord("c2"), to: coord("c4")})
 	b.MakeMove(Move{p: Black | Pawn, from: coord("d7"), to: coord("d5")})
 	b.MakeMove(Move{p: White | Pawn, from: coord("c4"), to: coord("d5"), isCapture: true})
-	if l := coordsFromBit(b.PseudoMoves(White).Attackers(coord("d5"))); len(l) != 0 {
+	if l := coordsFromBit(b.PsuedoMoves(White).Attackers(coord("d5"))); len(l) != 0 {
 		t.Errorf("no white pieces should be attacking: %v", l)
 	}
 }
