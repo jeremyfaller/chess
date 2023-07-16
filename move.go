@@ -96,7 +96,7 @@ func (m Move) promotionString() string {
 	if !m.IsPromotion() {
 		return ""
 	}
-	return "=" + m.promotion.String()
+	return "=" + m.promotion.NoteString()
 }
 
 // checkString returns the string if we're in check.
