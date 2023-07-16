@@ -8,6 +8,8 @@ import (
 	"unicode"
 )
 
+//go:generate go run coord_gen.go coord.go dir.go bit.go
+
 var noteString = "abcdefgh"
 var UnknownDir = errors.New("bad dir")
 
@@ -189,39 +191,4 @@ func (c Coord) FileIdx() int {
 		panic("file idx on an invalid coord")
 	}
 	return c.X()
-}
-
-// dirs is an array of LUTs, one for each square. For each of the squares, it
-// maps a given coordinate to the direciton it takes to get there. Note, that
-// it only returns valid standard directions, not special directions for pawns,
-// and castling.
-var dirs [64][64]Dir
-
-// Set up dirs.
-func init() {
-	for i := 0; i < 64; i++ {
-		c := CoordFromIdx(i)
-		for _, d := range []Dir{N, NE, E, SE, S, SW, W, NW} {
-			last := c
-			for {
-				last = last.ApplyDir(d)
-				if !last.IsValid() {
-					break
-				}
-				dirs[i][last.Idx()] = d
-			}
-		}
-		for _, d := range []Dir{NNE, NEE, SEE, SSE, SSW, SWW, NWW, NNW} {
-			if last := c.ApplyDir(d); last.IsValid() {
-				dirs[i][last.Idx()] = d
-			}
-		}
-	}
-}
-
-// DirBetween returns a Dir, given two coords.
-//
-// Returns InvalidDir if there's not mapping.
-func DirBetween(from, to Coord) Dir {
-	return dirs[from.Idx()][to.Idx()]
 }
