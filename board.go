@@ -74,11 +74,11 @@ func (b *Board) set(p Piece, c Coord) {
 	}
 	if p == Empty {
 		b.state.occ.Clear(idx)
-		b.PseudoMoves(White).Update(p, c)
-		b.PseudoMoves(Black).Update(p, c)
+		b.PsuedoMoves(White).Update(p, c)
+		b.PsuedoMoves(Black).Update(p, c)
 	} else {
 		b.state.occ.Set(idx)
-		b.PseudoMoves(p).Update(p, c)
+		b.PsuedoMoves(p).Update(p, c)
 	}
 	b.state.spaces[idx] = p
 }
@@ -178,8 +178,8 @@ func (b *Board) FENString() string {
 	return s
 }
 
-// PseudoMoves returns the psudeo squares for a given color.
-func (b *Board) PseudoMoves(p Piece) *PsuedoMoves {
+// PsuedoMoves returns the psudeo squares for a given color.
+func (b *Board) PsuedoMoves(p Piece) *PsuedoMoves {
 	if p == Empty {
 		panic("empty")
 	}
@@ -236,7 +236,7 @@ func (b *Board) doesSquareAttack(from, to Coord, color Piece) bool {
 
 	// Now, check the psuedo-moves, and see if it's a possibility that the
 	// piece attacks the given square.
-	if !b.PseudoMoves(p).PossibleMove(from, to) {
+	if !b.PsuedoMoves(p).PossibleMove(from, to) {
 		return false
 	}
 
@@ -260,7 +260,7 @@ func (b *Board) isSquareAttacked(c Coord, color Piece) bool {
 		return false
 	}
 
-	at := b.PseudoMoves(color).Attackers(c)
+	at := b.PsuedoMoves(color).Attackers(c)
 	for i := 0; i < 64; i++ {
 		t := Bit(1 << i)
 		if at&t != 0 {
