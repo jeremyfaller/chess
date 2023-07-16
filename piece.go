@@ -18,8 +18,7 @@ const (
 	Black        = 16
 )
 
-var movesForPiece [][][][]Coord
-var attacksForPiece [][]PsuedoMoves
+//go:generate go run piece.go piece_gen.go dir.go coord.go bit.go
 
 type Score int
 
@@ -69,7 +68,8 @@ func (p Piece) Colorless() Piece {
 }
 
 func (p Piece) String() string {
-	black, white, reset := "\033[31m", "\033[37m", "\033[0m"
+	//black, white, reset := "\033[31m", "\033[37m", "\033[0m"
+	black, white, reset := "", "", ""
 	switch p {
 	case White | Pawn:
 		return white + "P" + reset
@@ -84,17 +84,17 @@ func (p Piece) String() string {
 	case White | King:
 		return white + "K" + reset
 	case Black | Pawn:
-		return black + "P" + reset
+		return black + "p" + reset
 	case Black | Knight:
-		return black + "N" + reset
+		return black + "n" + reset
 	case Black | Bishop:
-		return black + "B" + reset
+		return black + "b" + reset
 	case Black | Rook:
-		return black + "R" + reset
+		return black + "r" + reset
 	case Black | Queen:
-		return black + "Q" + reset
+		return black + "q" + reset
 	case Black | King:
-		return black + "K" + reset
+		return black + "k" + reset
 	}
 	return " "
 }
@@ -117,88 +117,6 @@ func (p Piece) IsPawn() bool {
 
 func (p Piece) Score() Score {
 	return scores[p]
-}
-
-var (
-	kingAttackDir      = []Dir{N, NE, E, SE, S, SW, W, NW}
-	kingDir            = []Dir{N, NE, E, E2, SE, S, SW, W, W2, NW}
-	queenDir           = []Dir{N, NE, E, SE, S, SW, W, NW}
-	rookDir            = []Dir{N, E, S, W}
-	bishopDir          = []Dir{NE, SE, SW, NW}
-	knightDir          = []Dir{NNE, NEE, SEE, SSE, SSW, SWW, NWW, NNW}
-	whitePawnDir       = []Dir{N, NN, NE, NW}
-	whitePawnAttackDir = []Dir{NE, NW}
-	blackPawnDir       = []Dir{S, SS, SE, SW}
-	blackPawnAttackDir = []Dir{SE, SW}
-)
-
-// Attack dir returns a slice of Dir in which a Piece attacks.
-func (p Piece) AttackDir() []Dir {
-	switch p.Colorless() {
-	case Queen, Rook, Bishop, Knight:
-		return p.MoveDir()
-	case King:
-		return kingAttackDir
-	case Pawn:
-		if p.Color() == White {
-			return whitePawnAttackDir
-		} else {
-			return blackPawnAttackDir
-		}
-	}
-	panic("direction not set up for piece " + p.String())
-}
-
-// MoveDir returns a slice of Dir in which a Piece moves.
-func (p Piece) MoveDir() []Dir {
-	switch p.Colorless() {
-	case Queen:
-		return queenDir
-	case King:
-		return kingDir
-	case Rook:
-		return rookDir
-	case Bishop:
-		return bishopDir
-	case Pawn:
-		if p.Color() == White {
-			return whitePawnDir
-		} else {
-			return blackPawnDir
-		}
-	case Knight:
-		return knightDir
-	}
-	panic("direction not set up for piece " + p.String())
-}
-
-// isSlider returns true if a piece is a sliding piece, ie it can move more
-// than one space in a given direciton.
-func (p Piece) isSlider() bool {
-	switch p.Colorless() {
-	case Bishop, Rook, Queen:
-		return true
-	default:
-		return false
-	}
-}
-
-// AttackDistance returns the distance a piece can attack in a given direction.
-func (p Piece) AttackDistance(d Dir) int {
-	switch p.Colorless() {
-	case Knight, King, Pawn:
-		return 1
-	default:
-		return 8
-	}
-}
-
-// SlideDistance returns the distance a piece can slide.
-func (p Piece) SlideDistance() int {
-	if !p.isSlider() {
-		return 1
-	}
-	return 8 // can slide upto the whole board.
 }
 
 func (p Piece) NoteString() string {
@@ -241,67 +159,4 @@ func (p Piece) HashIdx() int {
 
 func (s Score) String() string {
 	return fmt.Sprintf("%01.2f", float32(s)/100.)
-}
-
-// genMoves generates the set of moves for a piece at a coordinate.
-func genMoves(p Piece, c Coord) (allMoves [][]Coord) {
-	for _, d := range p.MoveDir() {
-		pos := c
-		moves := []Coord{}
-		for i, dis := 0, p.SlideDistance(); i < dis; i++ {
-			pos = pos.ApplyDir(d)
-			if !pos.IsValid() {
-				break
-			}
-			moves = append(moves, pos)
-		}
-		if len(moves) != 0 {
-			allMoves = append(allMoves, moves)
-		}
-	}
-	return allMoves
-}
-
-// genAttacks returns a slice of Bit where a piece can attack.
-func genAttacks(p Piece, c Coord) (attacks PsuedoMoves) {
-	bit := c.Bit()
-	for _, d := range p.AttackDir() {
-		for i, dis, pos := 0, p.AttackDistance(d), c; i < dis; i++ {
-			pos = pos.ApplyDir(d)
-			if !pos.IsValid() {
-				break
-			}
-			attacks[pos.Idx()] |= bit
-		}
-	}
-	return attacks
-}
-
-func init() {
-	// Make the moves/attacks LUT.
-	movesForPiece = make([][][][]Coord, Black*2)
-	attacksForPiece = make([][]PsuedoMoves, Black*2)
-	for _, c := range []Piece{Black, White} {
-		for _, p := range []Piece{King, Queen, Rook, Bishop, Knight, Pawn} {
-			p |= c
-			movesForPiece[p] = make([][][]Coord, 64)
-			attacksForPiece[p] = make([]PsuedoMoves, 64)
-			for i := 0; i < 64; i++ {
-				coord := CoordFromIdx(i)
-				movesForPiece[p][i] = genMoves(p, coord)
-				attacksForPiece[p][i] = genAttacks(p, coord)
-			}
-		}
-	}
-}
-
-// MovesForPiece returns a slice of slices of all the squares a piece could possibly move for
-// a Piece at a given Coord.
-func (p Piece) Moves(c Coord) [][]Coord {
-	return movesForPiece[p][c.Idx()]
-}
-
-// AttacksForPiece returns a slice of Bits where a piece could attack if it was at a current location.
-func (p Piece) Attacks(c Coord) *PsuedoMoves {
-	return &attacksForPiece[p][c.Idx()]
 }
