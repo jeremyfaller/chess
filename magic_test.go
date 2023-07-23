@@ -24,10 +24,10 @@ func TestRookMagic(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		t.Logf("RookOccupancy(%v, %016x) %v", test.loc, test.occ.Uint64(), test.moves)
-		locs := RookLookup(test.loc, test.occ)
+		t.Logf("RookOccupancy(%v, %v) %v", test.loc, test.occ, test.moves)
+		locs := rookLookup(test.loc, test.occ)
 		if !reflect.DeepEqual(locs, test.moves) {
-			t.Errorf("RookOccupancy(%v, %016x) = %v, expected %v", test.loc, test.occ.Uint64(), locs, test.moves)
+			t.Errorf("RookOccupancy(%v, %v) = %v, expected %v", test.loc, test.occ, locs, test.moves)
 		}
 	}
 }

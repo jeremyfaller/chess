@@ -67,7 +67,6 @@ func main() {
 	flag.Parse()
 	b := bytes.NewBuffer([]byte(header))
 	gen(b)
-	fmt.Println(string(b.Bytes()))
 
 	out, err := format.Source(b.Bytes())
 	if err != nil {

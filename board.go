@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"math/bits"
 	"strconv"
 	"strings"
 	"unicode"
@@ -29,10 +30,6 @@ type BoardState struct {
 	wOO, wOOO, bOO, bOOO bool  // Can the white/black king castle kingside/queenside?
 	wkLoc, bkLoc         Coord // Where are the kings located?
 	isWCheck, isBCheck   bool
-
-	// Bitfields stating if white or black attack a given square.
-	wPsuedos PsuedoMoves
-	bPsuedos PsuedoMoves
 
 	// Is this space occupied?
 	occ Bit
@@ -74,11 +71,8 @@ func (b *Board) set(p Piece, c Coord) {
 	}
 	if p == Empty {
 		b.state.occ.Clear(idx)
-		b.PsuedoMoves(White).Update(p, c)
-		b.PsuedoMoves(Black).Update(p, c)
 	} else {
 		b.state.occ.Set(idx)
-		b.PsuedoMoves(p).Update(p, c)
 	}
 	b.state.spaces[idx] = p
 }
@@ -178,17 +172,6 @@ func (b *Board) FENString() string {
 	return s
 }
 
-// PsuedoMoves returns the psudeo squares for a given color.
-func (b *Board) PsuedoMoves(p Piece) *PsuedoMoves {
-	if p == Empty {
-		panic("empty")
-	}
-	if p.Color() == White {
-		return &b.state.wPsuedos
-	}
-	return &b.state.bPsuedos
-}
-
 // IsKingInCheck returns true if the given piece's color's king is in check.
 func (b *Board) IsKingInCheck(p Piece) bool {
 	if p == Empty {
@@ -217,54 +200,30 @@ func (b *Board) setCheck(p Piece, v bool) {
 	}
 }
 
-// doesSquareAttack returns true if a given square attacks another one.
-// if the square is definitely attacked.
-func (b *Board) doesSquareAttack(from, to Coord, color Piece) bool {
-	p := b.at(from)
-	// If there's no piece at the attacking square, clearly no.
-	if p == Empty {
-		return false
-	}
-
-	// Make sure we could get between the two squares.
-	// NB: We could check if d is in the set of attacking squares from that the
-	// piece has, but the DoesAttack call below does that as well.
-	d := DirBetween(from, to)
-	if d == InvalidDir {
-		return false
-	}
-
-	// Now, check the psuedo-moves, and see if it's a possibility that the
-	// piece attacks the given square.
-	if !b.PsuedoMoves(p).PossibleMove(from, to) {
-		return false
-	}
-
-	// And finally, make sure there's no pieces between us.
-	if !d.IsKnight() {
-		for last := from.ApplyDir(d); last != to; last = last.ApplyDir(d) {
-			if !last.IsValid() {
-				panic("shouldn't be invalid")
-			}
-			if b.at(last) != Empty {
-				return false
-			}
-		}
-	}
-	return true
-}
-
 // isSquareAttacked returns true if a given square is attacked by the given color.
 func (b *Board) isSquareAttacked(c Coord, color Piece) bool {
 	if c == InvalidCoord {
 		return false
 	}
 
-	at := b.PsuedoMoves(color).Attackers(c)
-	for i := 0; i < 64; i++ {
-		t := Bit(1 << i)
-		if at&t != 0 {
-			if b.doesSquareAttack(CoordFromIdx(i), c, color) {
+	bit := Bit(1 << c.Idx())
+	occ := b.state.occ
+	for v := occ; v != 0; {
+		i := bits.TrailingZeros64(uint64(v))
+		p := b.at(CoordFromIdx(i))
+		v.Clear(i)
+		if p.Color() != color {
+			continue
+		}
+		if p.Colorless() == Queen {
+			if (Bishop|p.Color()).Attacks(CoordFromIdx(i), occ)&bit != 0 {
+				return true
+			}
+			if (Rook|p.Color()).Attacks(CoordFromIdx(i), occ)&bit != 0 {
+				return true
+			}
+		} else {
+			if p.Attacks(CoordFromIdx(i), occ)&bit != 0 {
 				return true
 			}
 		}

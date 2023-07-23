@@ -94,7 +94,7 @@ func CoordFromXY(x, y int) Coord {
 	if x < 0 || x > 7 || y < 0 || y > 7 {
 		return InvalidCoord
 	}
-	return Coord(x + y*8)
+	return CoordFromIdx(x + y*8)
 }
 
 func (c Coord) ApplyDir(d Dir) Coord {

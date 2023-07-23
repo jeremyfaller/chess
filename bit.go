@@ -8,10 +8,10 @@ import (
 
 type Bit uint64
 
-// String pretty-prints a Bit.
-func (b Bit) String() string {
+// BitString pretty-prints a Bit.
+func (b Bit) BitString() string {
 	var s strings.Builder
-	s.WriteString(fmt.Sprintf("%016x\n", b.Uint64()))
+	s.WriteString(fmt.Sprintf("%v\n", b.String()))
 	for y := 7; y >= 0; y-- {
 		for x := 0; x < 8; x++ {
 			if b&(1<<(x+y*8)) == 0 {
@@ -28,9 +28,9 @@ func (b Bit) String() string {
 	return s.String()
 }
 
-// Uint64 returns the uint64 value for this Bit.
-func (b Bit) Uint64() uint64 {
-	return uint64(b)
+// String returns a formatted bitstring.
+func (b Bit) String() string {
+	return fmt.Sprintf("0x%016x", uint64(b))
 }
 
 // IsSet returns true is if bit at the given index is set.

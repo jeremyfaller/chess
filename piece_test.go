@@ -50,3 +50,24 @@ func TestPieceString(t *testing.T) {
 		t.Errorf("%s != %s", str, "1.00")
 	}
 }
+
+func TestPieceAttacks(t *testing.T) {
+	coord := testingCoordFunc(t)
+	tests := []struct {
+		p     Piece
+		coord Coord
+		occ   Bit
+		sqs   []string
+	}{
+		{Piece(White | King), coord("a1"), 0, []string{"a2", "b2", "b1"}},
+	}
+	for i, test := range tests {
+		var v Bit
+		for _, s := range test.sqs {
+			v.Set(coord(s).Idx())
+		}
+		if a := test.p.Attacks(test.coord, test.occ); a != v {
+			t.Errorf("[%d] expected %v.Attacks(%v, %x) = %x, expected %x", i, test.p, test.coord, test.occ, a, v)
+		}
+	}
+}

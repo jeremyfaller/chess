@@ -92,40 +92,26 @@ func genMoves(p Piece, c Coord) (moves []Coord) {
 	return moves
 }
 
-// genPsuedos returns a slice of Bit where a piece can attack.
-func genPsuedos(p Piece, c Coord) (attacks [64]Bit) {
-	bit := c.Bit()
-	for _, d := range p.attackDir() {
-		for i, dis, pos := 0, p.attackDistance(d), c; i < dis; i++ {
-			pos = pos.ApplyDir(d)
-			if !pos.IsValid() {
-				break
-			}
-			attacks[pos.Idx()] |= bit
-		}
-	}
-	return attacks
-}
-
 // genAttacks returns a bit for a piece and a location.
-func genAttacks(p Piece, c Coord) Bit {
-	return 0
+func genAttacks(p Piece, c Coord) (b Bit) {
+	for _, d := range p.attackDir() {
+		pos := c.ApplyDir(d)
+		if !pos.IsValid() {
+			continue
+		}
+		b.Set(pos.Idx())
+	}
+	return b
 }
 
 func gen(w io.Writer) {
 	colors := []Piece{Black, White}
 	pieces := []Piece{Pawn, Knight, King, Bishop, Rook, Queen}
-	// Make the moves/psuedos LUT.
+	// Make the moves LUT.
 	movesForPiece := make([][][]Coord, Black*2)
-	psuedosForPiece := make([][][64]Bit, Black*2)
 	for _, c := range colors {
 		for _, p := range pieces {
 			p |= c
-			psuedosForPiece[p] = make([][64]Bit, 64)
-			for i := 0; i < 64; i++ {
-				coord := CoordFromIdx(i)
-				psuedosForPiece[p][i] = genPsuedos(p, coord)
-			}
 			if !p.isSlider() {
 				movesForPiece[p] = make([][]Coord, 64)
 				for i := 0; i < 64; i++ {
@@ -141,7 +127,7 @@ func gen(w io.Writer) {
 		for _, p := range pieces {
 			p |= c
 			for i := 0; i < 64; i++ {
-				attacksForPiece[p][CoordFromIdx(i)] = genAttacks(p, Coord(c))
+				attacksForPiece[p][CoordFromIdx(i)] = genAttacks(p, CoordFromIdx(i))
 			}
 		}
 	}
@@ -160,25 +146,11 @@ func gen(w io.Writer) {
 	}
 	fmt.Fprintf(w, "}\n\n")
 
-	fmt.Fprintf(w, "var psuedosForPiece = [][]PsuedoMoves {\n")
-	for i := range psuedosForPiece {
-		fmt.Fprintf(w, "\t[]PsuedoMoves{\n")
-		for j := range psuedosForPiece[i] {
-			fmt.Fprintf(w, "\t\t[64]Bit{")
-			for k := range psuedosForPiece[i][j] {
-				fmt.Fprintf(w, " 0x%x,", psuedosForPiece[i][j][k].Uint64())
-			}
-			fmt.Fprintf(w, "\t\t},\n")
-		}
-		fmt.Fprintf(w, "\t},\n")
-	}
-	fmt.Fprintf(w, "}\n\n")
-
 	fmt.Fprintf(w, "var attacksForPiece = [][64]Bit {\n")
 	for i := range attacksForPiece {
 		fmt.Fprintf(w, "\t[64]Bit{")
 		for j := range attacksForPiece[i] {
-			fmt.Fprintf(w, "0x%x, ", attacksForPiece[i][j].Uint64())
+			fmt.Fprintf(w, "%v, ", attacksForPiece[i][j])
 		}
 		fmt.Fprintf(w, "\t},\n")
 	}
@@ -208,20 +180,24 @@ var header = `package main
 func (p Piece) Moves(c Coord, occ Bit) []Coord {
 	if p.isSlider() {
 		if p.Colorless() == Bishop {
-			return BishopLookup(c, occ)
+			return bishopLookup(c, occ)
 		}
-		return RookLookup(c, occ)
+		return rookLookup(c, occ)
 	}
 	return movesForPiece[p][c.Idx()]
 }
 
-// Psuedos returns a slice of Bits where a piece could attack if it was at a current location.
-func (p Piece) Psuedos(c Coord) *PsuedoMoves {
-	return &psuedosForPiece[p][c.Idx()]
-}
-
 // Attacks returns a Bit of the attacked squares for a given piece.
 func (p Piece) Attacks(c Coord, occ Bit) Bit {
-	return attacksForPiece[p][c.Idx()]
+	if p.isSlider() {
+		// TODO(jfaller): Remove this loop.
+		var b Bit
+		for _, a := range p.Moves(c, occ) {
+			b.Set(a.Idx())
+		}
+		return b
+	} else {
+		return attacksForPiece[p][c.Idx()]
+	}
 }
 `

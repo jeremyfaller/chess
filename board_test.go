@@ -326,6 +326,18 @@ func TestFENChecks(t *testing.T) {
 			false,
 			true,
 		},
+		{
+			"no pawn check",
+			"k7/P7/8/8/8/8/8/K7 b - - 0 1",
+			false,
+			false,
+		},
+		{
+			"pawn check",
+			"k7/1P6/8/8/8/8/8/K7 b - - 0 1",
+			false,
+			true,
+		},
 	}
 
 	for _, test := range tests {
@@ -473,82 +485,6 @@ func TestMakeMove(t *testing.T) {
 
 	for _, test := range tests {
 		makeUnmakeMove(t, test.desc, test.before, test.from, test.to, test.after)
-	}
-}
-
-func TestAttackers(t *testing.T) {
-	coord := testingCoordFunc(t)
-	tests := []struct {
-		desc string
-		p    Piece
-		c    Coord
-		ex   []string
-	}{
-		{
-			"rook",
-			White | Rook,
-			coord("a1"),
-			[]string{"a2", "a3", "a4", "a5", "a6", "a7", "a8", "b1", "c1", "d1", "e1", "f1", "g1", "h1"},
-		},
-		{
-			"pawn",
-			White | Pawn,
-			coord("b2"),
-			[]string{"a3", "c3"},
-		},
-	}
-
-	for _, test := range tests {
-		var a PsuedoMoves
-		a.Update(test.p, test.c)
-		attacked := make(map[Coord]struct{})
-		for _, s := range test.ex {
-			attacked[coord(s)] = struct{}{}
-		}
-		for i := 0; i < 64; i++ {
-			c := CoordFromIdx(i)
-			if at := coordsFromBit(a.Attackers(c)); len(at) == 1 && at[0] == test.c {
-				delete(attacked, c)
-			}
-		}
-		if len(attacked) != 0 {
-			t.Errorf("Expected to clear the attackers list: %v", attacked)
-		}
-	}
-}
-
-func TestDoesSquareAttack(t *testing.T) {
-	coord := testingCoordFunc(t)
-	tests := []struct {
-		desc     string
-		fen      string
-		from, to Coord
-		ex       bool
-	}{
-		{
-			"rook to rook",
-			"k7/8/8/8/8/r7/R7/K7 b - - 0 1",
-			coord("a3"),
-			coord("a2"),
-			true,
-		},
-		{
-			"rook to king",
-			"k7/8/8/8/8/r7/R7/K7 w - - 0 1",
-			coord("a3"),
-			coord("a1"),
-			false,
-		},
-	}
-
-	for _, test := range tests {
-		b, err := FromFEN(test.fen)
-		if err != nil {
-			t.Fatalf("[%s] unexpected error: %v", test.desc, err)
-		}
-		if v := b.doesSquareAttack(test.from, test.to, b.at(test.from).OppositeColor()); v != test.ex {
-			t.Errorf("[%s] doesSquareAttack(%v, %v) = %v, expected = %v", test.desc, test.from, test.to, v, test.ex)
-		}
 	}
 }
 
@@ -740,48 +676,6 @@ func TestQueenMoves(t *testing.T) {
 	}
 }
 
-func TestPsuedoMoves(t *testing.T) {
-	b := EmptyBoard()
-	for _, p := range []Piece{Pawn, Knight, Bishop, Rook, Queen, King} {
-		for _, c := range []Piece{White, Black} {
-			for i := 0; i < 64; i++ {
-				coord := CoordFromIdx(i)
-
-				// Pawns might not always attack something.
-				if p == Pawn {
-					if c == White && coord.Y() == 7 ||
-						c == Black && coord.Y() == 0 {
-						continue
-					}
-				}
-
-				b.set(p|c, coord)
-				if b.PsuedoMoves(c).countZeros() == 0 {
-					t.Errorf("error setting: %v %v", p|c, coord)
-				}
-
-				b.set(Empty, coord)
-				if b.PsuedoMoves(c).countZeros() != 0 {
-					t.Errorf("error emptying: %v %v", p|c, coord)
-				}
-			}
-		}
-	}
-}
-
-func TestCaptureClearsPsuedo(t *testing.T) {
-	coord := testingCoordFunc(t)
-	b := EmptyBoard()
-	b.set(Pawn|White, coord("c2"))
-	b.set(Pawn|Black, coord("d7"))
-	b.MakeMove(Move{p: White | Pawn, from: coord("c2"), to: coord("c4")})
-	b.MakeMove(Move{p: Black | Pawn, from: coord("d7"), to: coord("d5")})
-	b.MakeMove(Move{p: White | Pawn, from: coord("c4"), to: coord("d5"), isCapture: true})
-	if l := coordsFromBit(b.PsuedoMoves(White).Attackers(coord("d5"))); len(l) != 0 {
-		t.Errorf("no white pieces should be attacking: %v", l)
-	}
-}
-
 func TestOccupancy(t *testing.T) {
 	tests := []struct {
 		fen string
@@ -797,7 +691,7 @@ func TestOccupancy(t *testing.T) {
 			t.Errorf("error making board: %v", err)
 		}
 		if b.state.occ != test.occ {
-			t.Errorf("expected occupancy = %016x, got %016x", test.occ.Uint64(), b.state.occ.Uint64())
+			t.Errorf("expected occupancy = %v, got %v", test.occ, b.state.occ)
 		}
 	}
 }
