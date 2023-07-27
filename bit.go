@@ -46,7 +46,7 @@ func (b *Bit) Set(idx int) Bit {
 
 // Clear clears a given bit index.
 func (b *Bit) Clear(idx int) Bit {
-	*b &= Bit(^(1 << idx))
+	*b &= Bit(^(1 << uint(idx)))
 	return *b
 }
 

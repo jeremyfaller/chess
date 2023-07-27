@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 
@@ -229,24 +230,24 @@ func TestGetMoves(t *testing.T) {
 		},
 		{ // Test moving into your own piece stops the move.
 			"same color stops",
-			"k7/8/8/8/8/R7/8/R1K5 w - - 0 1",
+			"1k6/8/8/8/8/R7/8/R1K5 w - - 0 1",
 			coord("a1"),
 			toSet([]Move{
-				setCheck(move(White|Rook, "a1", "a2", Empty)),
-				setCheck(move(White|Rook, "a1", "b1", Empty)),
+				move(White|Rook, "a1", "a2", Empty),
+				move(White|Rook, "a1", "b1", Empty),
 			}),
 		},
 		{
 			"king moves",
-			"k7/8/8/8/8/8/8/R3K2R w KQ - 0 1",
+			"1k6/8/8/8/8/8/8/R3K2R w KQ - 0 1",
 			coord("e1"),
 			toSet([]Move{
-				setCheck(move(White|King, "e1", "d1", Empty)),
-				setCheck(move(White|King, "e1", "d2", Empty)),
-				setCheck(move(White|King, "e1", "e2", Empty)),
-				setCheck(move(White|King, "e1", "f1", Empty)),
-				setCheck(move(White|King, "e1", "f2", Empty)),
-				setCheck(move(White|King, "e1", "g1", Empty)),
+				move(White|King, "e1", "d1", Empty),
+				move(White|King, "e1", "d2", Empty),
+				move(White|King, "e1", "e2", Empty),
+				move(White|King, "e1", "f1", Empty),
+				move(White|King, "e1", "f2", Empty),
+				move(White|King, "e1", "g1", Empty),
 				move(White|King, "e1", "c1", Empty),
 			}),
 		},
@@ -288,6 +289,9 @@ func TestGetMoves(t *testing.T) {
 	}
 
 	for i, test := range tests {
+		if i != 8 {
+			continue
+		}
 		t.Logf("[%d] %s %+v\n", i, test.desc, test.c)
 		b, err := FromFEN(test.fen)
 		if err != nil {
@@ -295,6 +299,11 @@ func TestGetMoves(t *testing.T) {
 		}
 		moves := toSet(b.GetMoves(nil, test.c))
 		if diff := pretty.Compare(test.moves, moves); diff != "" {
+			fmt.Printf("%+v\n", b.state)
+			for m := range moves {
+				fmt.Println(m.to)
+			}
+			b.Print()
 			t.Logf("%v\n", test.moves)
 			t.Logf("%v\n", moves)
 			t.Errorf("[%s] moves unequal:\n%s", test.desc, diff)

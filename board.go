@@ -3,7 +3,6 @@ package main
 import (
 	"errors"
 	"fmt"
-	"math/bits"
 	"strconv"
 	"strings"
 	"unicode"
@@ -209,21 +208,20 @@ func (b *Board) isSquareAttacked(c Coord, color Piece) bool {
 	bit := Bit(1 << c.Idx())
 	occ := b.state.occ
 	for v := occ; v != 0; {
-		i := bits.TrailingZeros64(uint64(v))
-		p := b.at(CoordFromIdx(i))
-		v.Clear(i)
+		from := v.NextCoord()
+		p := b.at(from)
 		if p.Color() != color {
 			continue
 		}
 		if p.Colorless() == Queen {
-			if (Bishop|p.Color()).Attacks(CoordFromIdx(i), occ)&bit != 0 {
+			if (Bishop|p.Color()).Attacks(from, occ)&bit != 0 {
 				return true
 			}
-			if (Rook|p.Color()).Attacks(CoordFromIdx(i), occ)&bit != 0 {
+			if (Rook|p.Color()).Attacks(from, occ)&bit != 0 {
 				return true
 			}
 		} else {
-			if p.Attacks(CoordFromIdx(i), occ)&bit != 0 {
+			if p.Attacks(from, occ)&bit != 0 {
 				return true
 			}
 		}

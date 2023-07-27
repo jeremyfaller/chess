@@ -31,3 +31,21 @@ func TestRookMagic(t *testing.T) {
 		}
 	}
 }
+
+func TestMagicEquivalence(t *testing.T) {
+	cmpBits := func(name string, coords [64][][]Coord, bits [64][]Bit) {
+		for i := range bits {
+			if len(bits[i]) != len(coords[i]) {
+				t.Fatalf("len(%sBits[%d]) != len(%sCoords[%d])", name, i, name, i)
+			}
+			for j := range coords[i] {
+				if val := ToBit(coords[i][j]); bits[i][j] != val {
+					t.Fatalf("%sBits[%d][%d] = %v, expected %v – %v %v", name, i, j, bits[i][j], val,
+						coords[i][j], val)
+				}
+			}
+		}
+	}
+	cmpBits("rook", rookCoords, rookBits)
+	cmpBits("bishop", bishopCoords, bishopBits)
+}

@@ -192,3 +192,26 @@ func (c Coord) FileIdx() int {
 	}
 	return c.X()
 }
+
+// ToBit takes a slice of Coord, and returns a Bit.
+func ToBit(c []Coord) (b Bit) {
+	for _, v := range c {
+		b.Set(v.Idx())
+	}
+	return b
+}
+
+// TooCoordSlice returns a slice of Coord from a given Bit.
+func (b Bit) ToCoordSlice() (c []Coord) {
+	c = make([]Coord, 0, b.CountOnes())
+	for b != 0 {
+		c = append(c, b.NextCoord())
+	}
+	return c
+}
+
+func (b *Bit) NextCoord() Coord {
+	i := bits.TrailingZeros64(uint64(*b))
+	b.Clear(i)
+	return CoordFromIdx(i)
+}

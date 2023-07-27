@@ -153,7 +153,7 @@ func indexToBit(index int, mask Bit) (r Bit) {
 	return r
 }
 
-func calcMagic(r *rand.Rand, sq int, maskF func(int) Bit, attF func(int, Bit) Bit) (Magic, [][]Coord) {
+func calcMagic(r *rand.Rand, sq int, maskF func(int) Bit, attF func(int, Bit) Bit) (Magic, [][]Coord, []Bit) {
 	mask := maskF(sq)
 	n := mask.CountOnes()
 	a := make([]Bit, 1<<n)
@@ -188,34 +188,31 @@ func calcMagic(r *rand.Rand, sq int, maskF func(int) Bit, attF func(int, Bit) Bi
 
 	// With the magic, create the slice of attacked Coords.
 	at := make([][]Coord, len(a))
+	bits := make([]Bit, len(a))
 	for k, v := range a {
 		loc := (b[k] * magic) >> (64 - n)
-		at[loc] = make([]Coord, v.CountOnes())
-		for j := range at[loc] {
-			n := bits.TrailingZeros64(uint64(v))
-			at[loc][j] = CoordFromIdx(n)
-			v ^= Bit(1 << n)
-		}
+		at[loc] = v.ToCoordSlice()
+		bits[loc] = v
 	}
-	return Magic{Mask: mask, Value: magic, Shift: (64 - n)}, at
+	return Magic{Mask: mask, Value: magic, Shift: (64 - n)}, at, bits
 }
 
 func gen(w io.Writer) {
 	genMagic := func(maskF func(int) Bit,
-		attF func(int, Bit) Bit) (res [64]Magic, coords [64][][]Coord) {
+		attF func(int, Bit) Bit) (res [64]Magic, coords [64][][]Coord, bits [64][]Bit) {
 		var wg sync.WaitGroup
 		for i := 0; i < 64; i++ {
 			wg.Add(1)
 			go func(r *rand.Rand, j int) {
-				res[j], coords[j] = calcMagic(r, j, maskF, attF)
+				res[j], coords[j], bits[j] = calcMagic(r, j, maskF, attF)
 				wg.Done()
 			}(rand.New(rand.NewSource(rand.Int63())), i)
 		}
 		wg.Wait()
-		return res, coords
+		return res, coords, bits
 	}
-	rMagic, rCoords := genMagic(genRookMask, genRookAttacks)
-	bMagic, bCoords := genMagic(genBishopMask, genBishopAttacks)
+	rMagic, rCoords, rBits := genMagic(genRookMask, genRookAttacks)
+	bMagic, bCoords, bBits := genMagic(genBishopMask, genBishopAttacks)
 
 	writeMagic := func(name string, res [64]Magic) {
 		fmt.Printf("size of %s: %d\n", name, getSize(res))
@@ -242,10 +239,24 @@ func gen(w io.Writer) {
 		}
 		fmt.Fprintf(w, "}\n\n")
 	}
+	writeBits := func(name string, bits [64][]Bit) {
+		fmt.Printf("size of %s: %d\n", name, getSize(bits))
+		fmt.Fprintf(w, "var %s = [64][]Bit {\n", name)
+		for i := 0; i < 64; i++ {
+			fmt.Fprintf(w, "\t[]Bit {\n")
+			for _, v := range bits[i] {
+				fmt.Fprintf(w, "%v,", v)
+			}
+			fmt.Fprintf(w, "\t},\n")
+		}
+		fmt.Fprintf(w, "}\n\n")
+	}
 	writeMagic("rookMagic", rMagic)
 	writeCoords("rookCoords", rCoords)
+	writeBits("rookBits", rBits)
 	writeMagic("bishopMagic", bMagic)
 	writeCoords("bishopCoords", bCoords)
+	writeBits("bishopBits", bBits)
 }
 
 var header = `package main
@@ -254,23 +265,29 @@ var header = `package main
 // rookLookup takes a coordinate and an occupancy bitset,
 // returning a slice of coordinates we need to search for pieces.
 func rookLookup(c Coord, occ Bit) []Coord {
-	if occ&(1<<c.Idx()) == 0 {
-		panic("expected rook to be at that space")
-	}
 	m := rookMagic[c.Idx()]
 	key := ((m.Mask & occ) * m.Value) >> m.Shift
 	return rookCoords[c.Idx()][key]
 }
 
+func rookBit(c Coord, occ Bit) Bit {
+	m := rookMagic[c.Idx()]
+	key := ((m.Mask & occ) * m.Value) >> m.Shift
+	return rookBits[c.Idx()][key]
+}
+
 // bishopLookup takes a coordinate and an occupancy bitset,
 // returning a slice of coordinates we need to search for pieces.
 func bishopLookup(c Coord, occ Bit) []Coord {
-	if occ&(1<<c.Idx()) == 0 {
-		panic("expected bishop to be at that space")
-	}
 	m := bishopMagic[c.Idx()]
 	key := ((m.Mask & occ) * m.Value) >> m.Shift
 	return bishopCoords[c.Idx()][key]
+}
+
+func bishopBit(c Coord, occ Bit) Bit {
+	m := bishopMagic[c.Idx()]
+	key := ((m.Mask & occ) * m.Value) >> m.Shift
+	return bishopBits[c.Idx()][key]
 }
 `
 

@@ -125,6 +125,10 @@ func gen(w io.Writer) {
 	attacksForPiece := make([][64]Bit, Black*2)
 	for _, c := range colors {
 		for _, p := range pieces {
+			// Rooks/Bishops/Queens are handled in magic_gen.go.
+			if p.isSlider() {
+				continue
+			}
 			p |= c
 			for i := 0; i < 64; i++ {
 				attacksForPiece[p][CoordFromIdx(i)] = genAttacks(p, CoordFromIdx(i))
@@ -189,13 +193,10 @@ func (p Piece) Moves(c Coord, occ Bit) []Coord {
 
 // Attacks returns a Bit of the attacked squares for a given piece.
 func (p Piece) Attacks(c Coord, occ Bit) Bit {
-	if p.isSlider() {
-		// TODO(jfaller): Remove this loop.
-		var b Bit
-		for _, a := range p.Moves(c, occ) {
-			b.Set(a.Idx())
-		}
-		return b
+	if p.Colorless() == Bishop {
+		return bishopBit(c, occ)
+	} else if p.Colorless() == Rook {
+		return rookBit(c, occ)
 	} else {
 		return attacksForPiece[p][c.Idx()]
 	}

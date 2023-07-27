@@ -12,5 +12,5 @@ package main
 type Magic struct {
 	Mask  Bit
 	Value Bit
-	Shift int
+	Shift uint
 }
