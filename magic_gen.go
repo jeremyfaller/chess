@@ -46,7 +46,7 @@ func getSize(v interface{}) int {
 				size += getSize(s.Field(i).Interface())
 			}
 		}
-	case reflect.Int, reflect.Uint64:
+	case reflect.Int, reflect.Uint64, reflect.Uint:
 		size += 8
 	default:
 		panic(fmt.Sprintf("UNKNOWN %v", reflect.TypeOf(v).Kind()))
@@ -194,7 +194,7 @@ func calcMagic(r *rand.Rand, sq int, maskF func(int) Bit, attF func(int, Bit) Bi
 		at[loc] = v.ToCoordSlice()
 		bits[loc] = v
 	}
-	return Magic{Mask: mask, Value: magic, Shift: (64 - n)}, at, bits
+	return Magic{Mask: mask, Value: magic, Shift: uint(64 - n)}, at, bits
 }
 
 func gen(w io.Writer) {
