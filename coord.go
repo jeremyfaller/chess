@@ -51,7 +51,7 @@ func (c Coord) String() string {
 }
 
 func (c Coord) Idx() int {
-	return int(c)
+	return int(c) & 0x3F
 }
 
 // Rank returns the rank of a Coord [0..7].
