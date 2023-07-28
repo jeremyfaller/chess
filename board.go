@@ -31,7 +31,7 @@ type BoardState struct {
 	isWCheck, isBCheck   bool
 
 	// Is this space occupied?
-	occ Bit
+	occ, wOcc, bOcc Bit
 }
 
 type Board struct {
@@ -70,8 +70,15 @@ func (b *Board) set(p Piece, c Coord) {
 	}
 	if p == Empty {
 		b.state.occ.Clear(idx)
+		b.state.wOcc.Clear(idx)
+		b.state.bOcc.Clear(idx)
 	} else {
 		b.state.occ.Set(idx)
+		if p.Color() == White {
+			b.state.wOcc.Set(idx)
+		} else {
+			b.state.bOcc.Set(idx)
+		}
 	}
 	b.state.spaces[idx] = p
 }
@@ -172,11 +179,11 @@ func (b *Board) FENString() string {
 }
 
 // IsKingInCheck returns true if the given piece's color's king is in check.
-func (b *Board) IsKingInCheck(p Piece) bool {
-	if p == Empty {
-		panic("empty")
+func (b *Board) IsKingInCheck(color Piece) bool {
+	if color != White && color != Black {
+		panic("should be only color")
 	}
-	if p.Color() == White {
+	if color == White {
 		return b.state.isWCheck
 	}
 	return b.state.isBCheck
@@ -201,29 +208,22 @@ func (b *Board) setCheck(p Piece, v bool) {
 
 // isSquareAttacked returns true if a given square is attacked by the given color.
 func (b *Board) isSquareAttacked(c Coord, color Piece) bool {
-	if c == InvalidCoord {
-		return false
-	}
-
 	bit := Bit(1 << c.Idx())
 	occ := b.state.occ
-	for v := occ; v != 0; {
+	var v Bit
+	if color == White {
+		v = b.state.wOcc
+	} else {
+		v = b.state.bOcc
+	}
+	for v != 0 {
 		from := v.NextCoord()
 		p := b.at(from)
 		if p.Color() != color {
 			continue
 		}
-		if p.Colorless() == Queen {
-			if (Bishop|p.Color()).Attacks(from, occ)&bit != 0 {
-				return true
-			}
-			if (Rook|p.Color()).Attacks(from, occ)&bit != 0 {
-				return true
-			}
-		} else {
-			if p.Attacks(from, occ)&bit != 0 {
-				return true
-			}
+		if p.Attacks(from, occ)&bit != 0 {
+			return true
 		}
 	}
 	return false
@@ -234,7 +234,7 @@ func (b *Board) wouldKingBeInCheck(m *Move) bool {
 	// So, if the king was in check, we need to see if we would block the
 	// check, or take the checking piece.
 	b.MakeMove(*m)
-	check := b.IsKingInCheck(m.p)
+	check := b.IsKingInCheck(m.p.Color())
 	if b.IsKingInCheck(m.p.OppositeColor()) {
 		m.isCheck = true
 	}
@@ -245,16 +245,6 @@ func (b *Board) wouldKingBeInCheck(m *Move) bool {
 // isLegalMove returns true if we're dealing with a legal move. Also, sets the
 // capture state on the move if it would be one.
 func (b *Board) isLegalMove(m *Move) bool {
-	// Any moves outside the board are invalid.
-	if !m.to.IsValid() {
-		return false
-	}
-
-	// Check that the piece is at the place specified
-	if p := b.at(m.from); p != m.p {
-		panic("piece was not present")
-	}
-
 	p2 := b.at(m.to)
 
 	if m.p.IsKing() {
@@ -281,7 +271,7 @@ func (b *Board) isLegalMove(m *Move) bool {
 			}
 
 			// Can't castle out of check.
-			if b.IsKingInCheck(m.p) {
+			if b.IsKingInCheck(m.p.Color()) {
 				return false
 			}
 
@@ -377,7 +367,7 @@ func (b *Board) GetMoves(moves []Move, c Coord) []Move {
 queenCheckRook:
 	for _, toPos := range pCheck.Moves(c, b.state.occ) {
 		// If we'd overlap one our own pieces, skip it.
-		if b.at(toPos).Color() == p.Color() {
+		if p2 := b.at(toPos); p2 != Empty && p2.Color() == p.Color() {
 			continue
 		}
 

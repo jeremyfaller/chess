@@ -105,40 +105,21 @@ func genAttacks(p Piece, c Coord) (b Bit) {
 }
 
 func gen(w io.Writer) {
-	colors := []Piece{Black, White}
-	pieces := []Piece{Pawn, Knight, King, Bishop, Rook, Queen}
 	// Make the moves LUT.
-	movesForPiece := make([][][]Coord, Black*2)
-	for _, c := range colors {
-		for _, p := range pieces {
-			p |= c
-			if !p.isSlider() {
-				movesForPiece[p] = make([][]Coord, 64)
-				for i := 0; i < 64; i++ {
-					coord := CoordFromIdx(i)
-					movesForPiece[p][i] = genMoves(p, coord)
-				}
-			}
-		}
-	}
-
-	attacksForPiece := make([][64]Bit, Black*2)
-	for _, c := range colors {
-		for _, p := range pieces {
-			// Rooks/Bishops/Queens are handled in magic_gen.go.
-			if p.isSlider() {
-				continue
-			}
+	movesForPiece := make([][64][]Coord, Black*2)
+	for _, c := range []Piece{White, Black} {
+		for _, p := range []Piece{Pawn, Knight, King} {
 			p |= c
 			for i := 0; i < 64; i++ {
-				attacksForPiece[p][CoordFromIdx(i)] = genAttacks(p, CoordFromIdx(i))
+				coord := CoordFromIdx(i)
+				movesForPiece[p][i] = genMoves(p, coord)
 			}
 		}
 	}
 
-	fmt.Fprintf(w, "var movesForPiece = [][][]Coord {\n")
+	fmt.Fprintf(w, "var movesForPiece = [][64][]Coord {\n")
 	for i := range movesForPiece {
-		fmt.Fprintf(w, "\t[][]Coord {\n")
+		fmt.Fprintf(w, "\t[64][]Coord {\n")
 		for j := range movesForPiece[i] {
 			fmt.Fprintf(w, "\t\t[]Coord {")
 			for k := range movesForPiece[i][j] {
@@ -150,15 +131,17 @@ func gen(w io.Writer) {
 	}
 	fmt.Fprintf(w, "}\n\n")
 
-	fmt.Fprintf(w, "var attacksForPiece = [][64]Bit {\n")
-	for i := range attacksForPiece {
-		fmt.Fprintf(w, "\t[64]Bit{")
-		for j := range attacksForPiece[i] {
-			fmt.Fprintf(w, "%v, ", attacksForPiece[i][j])
+	writeAttacks := func(name string, p Piece) {
+		fmt.Fprintf(w, "var %sAttacks = [64]Bit {", name)
+		for i := 0; i < 64; i++ {
+			fmt.Fprintf(w, "%s, ", genAttacks(p, CoordFromIdx(i)))
 		}
-		fmt.Fprintf(w, "\t},\n")
+		fmt.Fprintf(w, "}\n\n")
 	}
-	fmt.Fprintf(w, "}\n\n")
+	writeAttacks("wPawn", Pawn|White)
+	writeAttacks("bPawn", Pawn|Black)
+	writeAttacks("king", King)
+	writeAttacks("knight", Knight)
 }
 
 func main() {
@@ -193,12 +176,24 @@ func (p Piece) Moves(c Coord, occ Bit) []Coord {
 
 // Attacks returns a Bit of the attacked squares for a given piece.
 func (p Piece) Attacks(c Coord, occ Bit) Bit {
-	if p.Colorless() == Bishop {
-		return bishopBit(c, occ)
-	} else if p.Colorless() == Rook {
-		return rookBit(c, occ)
-	} else {
-		return attacksForPiece[p][c.Idx()]
+	idx := c.Idx()
+	switch p {
+		case White|Pawn:
+			return wPawnAttacks[idx]
+		case Black|Pawn:
+			return bPawnAttacks[idx]
+		case White|Knight, Black|Knight:
+			return knightAttacks[idx]
+		case White|Bishop, Black|Bishop:
+			return bishopBit(c, occ)
+		case White|Rook, Black|Rook:
+			return rookBit(c, occ)
+		case White|Queen, Black|Queen:
+			return rookBit(c, occ) | bishopBit(c, occ)
+		case White|King, Black|King:
+			return kingAttacks[idx]
 	}
+	println("piece: ", p)
+	panic("unknown piece")
 }
 `

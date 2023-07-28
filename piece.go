@@ -10,12 +10,12 @@ const (
 	Empty  Piece = 0
 	Pawn         = 1
 	Knight       = 2
-	King         = 3
-	Bishop       = 4
-	Rook         = 5
-	Queen        = 6
-	White        = 8
-	Black        = 16
+	Bishop       = 3
+	Rook         = 4
+	Queen        = 5
+	King         = 6
+	White        = 0
+	Black        = 8
 )
 
 //go:generate go run piece.go piece_gen.go dir.go coord.go bit.go
@@ -30,14 +30,6 @@ const (
 )
 
 var scores = []Score{
-	0,       // Empty
-	100,     // Pawn
-	300,     // Knight
-	300,     // Bishop
-	500,     // Rook
-	900,     // Queen
-	100000,  // King
-	0,       // Unused
 	0,       // White|Empty
 	100,     // White|Pawn
 	300,     // White|Knight
@@ -56,7 +48,7 @@ var scores = []Score{
 }
 
 func (p Piece) IsWhite() bool {
-	return p&White != 0
+	return p&Black == 0
 }
 
 func (p Piece) IsBlack() bool {
@@ -64,7 +56,7 @@ func (p Piece) IsBlack() bool {
 }
 
 func (p Piece) Colorless() Piece {
-	return p &^ (White | Black)
+	return p &^ Black
 }
 
 func (p Piece) String() string {
@@ -138,11 +130,11 @@ func (p Piece) NoteString() string {
 }
 
 func (p Piece) Color() Piece {
-	return p & (White | Black)
+	return p & Black
 }
 
 func (p Piece) OppositeColor() Piece {
-	return p.Color() ^ (White | Black)
+	return (p & Black) ^ Black
 }
 
 // isSlider returns true if a piece is a sliding piece, ie it can move more

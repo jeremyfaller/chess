@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"reflect"
 	"testing"
 
@@ -198,6 +197,10 @@ func TestGetMoves(t *testing.T) {
 	promo := func(p Piece, from, to string, promo Piece) Move {
 		return Move{p: p, from: coord(from), to: coord(to), promotion: promo}
 	}
+	check := func(m Move) Move {
+		m.isCheck = true
+		return m
+	}
 	toSet := func(moves []Move) map[Move]struct{} {
 		mapSet := make(map[Move]struct{})
 		for _, m := range moves {
@@ -234,7 +237,7 @@ func TestGetMoves(t *testing.T) {
 			coord("a1"),
 			toSet([]Move{
 				move(White|Rook, "a1", "a2", Empty),
-				move(White|Rook, "a1", "b1", Empty),
+				check(move(White|Rook, "a1", "b1", Empty)),
 			}),
 		},
 		{
@@ -289,9 +292,6 @@ func TestGetMoves(t *testing.T) {
 	}
 
 	for i, test := range tests {
-		if i != 8 {
-			continue
-		}
 		t.Logf("[%d] %s %+v\n", i, test.desc, test.c)
 		b, err := FromFEN(test.fen)
 		if err != nil {
@@ -299,13 +299,7 @@ func TestGetMoves(t *testing.T) {
 		}
 		moves := toSet(b.GetMoves(nil, test.c))
 		if diff := pretty.Compare(test.moves, moves); diff != "" {
-			fmt.Printf("%+v\n", b.state)
-			for m := range moves {
-				fmt.Println(m.to)
-			}
 			b.Print()
-			t.Logf("%v\n", test.moves)
-			t.Logf("%v\n", moves)
 			t.Errorf("[%s] moves unequal:\n%s", test.desc, diff)
 		}
 	}
@@ -354,11 +348,11 @@ func TestFENChecks(t *testing.T) {
 		if err != nil {
 			t.Fatalf("[%s] unexpected error: %v", test.desc, err)
 		}
-		if v := b.IsKingInCheck(White | King); v != test.isWCheck {
-			t.Errorf("[%s] IsKingInCheck(White|King) = %v, expected = %v", test.desc, v, test.isWCheck)
+		if v := b.IsKingInCheck(White); v != test.isWCheck {
+			t.Errorf("[%s] IsKingInCheck(White) = %v, expected = %v", test.desc, v, test.isWCheck)
 		}
-		if v := b.IsKingInCheck(Black | King); v != test.isBCheck {
-			t.Errorf("[%s] IsKingInCheck(Black|King) = %v, expected = %v", test.desc, v, test.isBCheck)
+		if v := b.IsKingInCheck(Black); v != test.isBCheck {
+			t.Errorf("[%s] IsKingInCheck(Black) = %v, expected = %v", test.desc, v, test.isBCheck)
 		}
 	}
 }
@@ -434,6 +428,7 @@ func TestUpdateCastleState(t *testing.T) {
 	}
 
 	for _, test := range tests {
+		t.Logf("%s", test.desc)
 		b, _ := makeMove(t, test.desc, test.fen, test.from, test.to)
 		if s := b.castleString(); s != test.state {
 			t.Errorf("[%s] expected %q to contain %q", test.desc, s, test.state)
@@ -494,16 +489,6 @@ func TestMakeMove(t *testing.T) {
 
 	for _, test := range tests {
 		makeUnmakeMove(t, test.desc, test.before, test.from, test.to, test.after)
-	}
-}
-
-func TestInvalidCoordNotAttacked(t *testing.T) {
-	b := New()
-	if b.isSquareAttacked(InvalidCoord, White) {
-		t.Errorf("expected isSquareAttacked(InvalidCoord, White) == false")
-	}
-	if b.isSquareAttacked(InvalidCoord, Black) {
-		t.Errorf("expected isSquareAttacked(InvalidCoord, Black) == false")
 	}
 }
 
@@ -707,21 +692,26 @@ func TestOccupancy(t *testing.T) {
 
 func TestSimpleScore(t *testing.T) {
 	tests := []struct {
-		desc  string
-		fen   string
+		p     Piece
 		score Score
 	}{
-		{"black missing rook", "1nbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", scores[White|Rook]},
-		{"white missing rook", "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/1NBQKBNR w KQkq - 0 1", scores[Black|Rook]},
+		{Piece(White | Pawn), 100},
+		{Piece(Black | Pawn), -100},
+		{Piece(White | Bishop), 300},
+		{Piece(Black | Bishop), -300},
+		{Piece(White | Knight), 300},
+		{Piece(Black | Knight), -300},
+		{Piece(White | Rook), 500},
+		{Piece(Black | Rook), -500},
+		{Piece(White | Queen), 900},
+		{Piece(Black | Queen), -900},
 	}
 
 	for i, test := range tests {
-		b, err := FromFEN(test.fen)
-		if err != nil {
-			t.Errorf("[%d] %s error making board", i, test.desc)
-		}
-		if b.state.score != test.score {
-			t.Errorf("[%d] %s Eval(%s) = %d, expected = %d", i, test.desc, test.fen, b.state.score, test.score)
+		b := EmptyBoard()
+		b.set(test.p, CoordFromIdx(0))
+		if s := b.state.score; s != test.score {
+			t.Errorf("[%d] b.Score() = %d, exepcted = %d", i, s, test.score)
 		}
 	}
 }

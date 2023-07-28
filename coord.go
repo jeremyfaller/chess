@@ -211,7 +211,7 @@ func (b Bit) ToCoordSlice() (c []Coord) {
 }
 
 func (b *Bit) NextCoord() Coord {
-	i := bits.TrailingZeros64(uint64(*b))
+	i := 63 - bits.LeadingZeros64(uint64(*b))
 	b.Clear(i)
 	return CoordFromIdx(i)
 }
