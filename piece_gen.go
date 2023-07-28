@@ -193,7 +193,6 @@ func (p Piece) Attacks(c Coord, occ Bit) Bit {
 		case White|King, Black|King:
 			return kingAttacks[idx]
 	}
-	println("piece: ", p)
 	panic("unknown piece")
 }
 `
