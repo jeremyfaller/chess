@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"runtime"
 	"runtime/pprof"
 	"runtime/trace"
 )
@@ -43,11 +42,5 @@ func main() {
 	}
 
 	b := New()
-
-	var m runtime.MemStats
-	runtime.ReadMemStats(&m)
-	fmt.Printf("%+v\n", m)
 	fmt.Println("perft(6) =", b.Perft(6))
-	runtime.ReadMemStats(&m)
-	fmt.Printf("%+v\n", m)
 }

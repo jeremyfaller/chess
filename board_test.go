@@ -684,8 +684,8 @@ func TestOccupancy(t *testing.T) {
 		if err != nil {
 			t.Errorf("error making board: %v", err)
 		}
-		if b.state.occ != test.occ {
-			t.Errorf("expected occupancy = %v, got %v", test.occ, b.state.occ)
+		if occ := b.state.wOcc | b.state.bOcc; occ != test.occ {
+			t.Errorf("expected occupancy = %v, got %v", test.occ, occ)
 		}
 	}
 }

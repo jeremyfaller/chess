@@ -31,7 +31,7 @@ type BoardState struct {
 	isWCheck, isBCheck   bool
 
 	// Is this space occupied?
-	occ, wOcc, bOcc Bit
+	wOcc, bOcc Bit
 }
 
 type Board struct {
@@ -69,11 +69,9 @@ func (b *Board) set(p Piece, c Coord) {
 		}
 	}
 	if p == Empty {
-		b.state.occ.Clear(idx)
 		b.state.wOcc.Clear(idx)
 		b.state.bOcc.Clear(idx)
 	} else {
-		b.state.occ.Set(idx)
 		if p.Color() == White {
 			b.state.wOcc.Set(idx)
 		} else {
@@ -209,7 +207,7 @@ func (b *Board) setCheck(p Piece, v bool) {
 // isSquareAttacked returns true if a given square is attacked by the given color.
 func (b *Board) isSquareAttacked(c Coord, color Piece) bool {
 	bit := Bit(1 << c.Idx())
-	occ := b.state.occ
+	occ := b.state.wOcc | b.state.bOcc
 	var v Bit
 	if color == White {
 		v = b.state.wOcc
@@ -365,7 +363,7 @@ func (b *Board) GetMoves(moves []Move, c Coord) []Move {
 	}
 
 queenCheckRook:
-	for _, toPos := range pCheck.Moves(c, b.state.occ) {
+	for _, toPos := range pCheck.Moves(c, b.state.wOcc|b.state.bOcc) {
 		// If we'd overlap one our own pieces, skip it.
 		if p2 := b.at(toPos); p2 != Empty && p2.Color() == p.Color() {
 			continue
