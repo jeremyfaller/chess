@@ -13,6 +13,7 @@ var (
 	cpuProfile   = flag.String("cpuprofile", "", "filename where we should write the cpu profile")
 	memProfile   = flag.String("memprofile", "", "filename where we should write the mem profile")
 	traceProfile = flag.String("traceprofile", "", "filename where we should write trace output")
+	depth        = flag.Int("depth", 6, "perft depth")
 )
 
 func main() {
@@ -42,5 +43,5 @@ func main() {
 	}
 
 	b := New()
-	fmt.Println("perft(6) =", b.Perft(6))
+	fmt.Printf("perft(%d) = %d\n", *depth, b.Perft(*depth))
 }
