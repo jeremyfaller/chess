@@ -114,7 +114,7 @@ func (p Piece) Score() Score {
 func (p Piece) NoteString() string {
 	switch p.Colorless() {
 	case Pawn:
-		return ""
+		return "P"
 	case King:
 		return "K"
 	case Knight:
@@ -126,7 +126,7 @@ func (p Piece) NoteString() string {
 	case Rook:
 		return "R"
 	}
-	panic(fmt.Sprintf("unknown piece %d", p))
+	return "?"
 }
 
 func (p Piece) Color() Piece {

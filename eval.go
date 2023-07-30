@@ -147,7 +147,7 @@ func (e *Eval) Start() {
 
 		// If no moves, we could be in stalemate or checkmate.
 		if len(moves) == 0 {
-			if e.b.IsKingInCheck(e.b.state.turn) {
+			if e.b.IsCheck() {
 				return checkmate
 			}
 			return stalemate

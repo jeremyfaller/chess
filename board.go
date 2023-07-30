@@ -28,10 +28,12 @@ type BoardState struct {
 	// State of the kings.
 	wOO, wOOO, bOO, bOOO bool  // Can the white/black king castle kingside/queenside?
 	wkLoc, bkLoc         Coord // Where are the kings located?
-	isWCheck, isBCheck   bool
+	isCheck              bool
 
-	// Is this space occupied?
-	wOcc, bOcc Bit
+	// Bitfields for if a place is occupied by a piece.
+	// We maintain 2 different occupancies for each color, a full occupancy, and one for just
+	// sliding pieces. We do this to speed up checking for checks after a move.
+	wOcc, wSlider, bOcc, bSlider Bit
 }
 
 type Board struct {
@@ -42,6 +44,14 @@ type Board struct {
 
 func (b *Board) at(c Coord) Piece {
 	return b.state.spaces[c.Idx()]
+}
+
+// occupancy returns the full occupancy for a given color.
+func (b *Board) occupancy(color Piece) Bit {
+	if color.Color() == White {
+		return b.state.wOcc
+	}
+	return b.state.bOcc
 }
 
 func (b *Board) set(p Piece, c Coord) {
@@ -68,16 +78,28 @@ func (b *Board) set(p Piece, c Coord) {
 			b.state.bkLoc = c
 		}
 	}
+
+	// Set the occupancy.
 	if p == Empty {
 		b.state.wOcc.Clear(idx)
+		b.state.wSlider.Clear(idx)
 		b.state.bOcc.Clear(idx)
+		b.state.bSlider.Clear(idx)
 	} else {
 		if p.Color() == White {
 			b.state.wOcc.Set(idx)
+			if p.isSlider() {
+				b.state.wSlider.Set(idx)
+			}
 		} else {
 			b.state.bOcc.Set(idx)
+			if p.isSlider() {
+				b.state.bSlider.Set(idx)
+			}
 		}
 	}
+
+	// And, save the piece.
 	b.state.spaces[idx] = p
 }
 
@@ -176,51 +198,30 @@ func (b *Board) FENString() string {
 	return s
 }
 
-// IsKingInCheck returns true if the given piece's color's king is in check.
-func (b *Board) IsKingInCheck(color Piece) bool {
-	if color != White && color != Black {
-		panic("should be only color")
-	}
-	if color == White {
-		return b.state.isWCheck
-	}
-	return b.state.isBCheck
+// IsCheck returns true if the board's in check.
+func (b *Board) IsCheck() bool {
+	return b.state.isCheck
 }
 
 // KingLoc returns the king location for the given piece's color.
-func (b *Board) KingLoc(p Piece) Coord {
-	if p.Color() == White {
+func (b *Board) KingLoc(color Piece) Coord {
+	if color.Color() == White {
 		return b.state.wkLoc
 	}
 	return b.state.bkLoc
 }
 
-// setCheck sets the check state.
-func (b *Board) setCheck(p Piece, v bool) {
-	if p.Color() == White {
-		b.state.isWCheck = v
-	} else {
-		b.state.isBCheck = v
-	}
-}
-
 // isSquareAttacked returns true if a given square is attacked by the given color.
-func (b *Board) isSquareAttacked(c Coord, color Piece) bool {
+func (b *Board) isSquareAttacked(c Coord, v Bit, color Piece) bool {
 	bit := Bit(1 << c.Idx())
-	occ := b.state.wOcc | b.state.bOcc
-	var v Bit
-	if color == White {
-		v = b.state.wOcc
-	} else {
-		v = b.state.bOcc
-	}
+	totOcc := b.state.wOcc | b.state.bOcc
 	for v != 0 {
 		from := v.NextCoord()
 		p := b.at(from)
 		if p.Color() != color {
-			continue
+			panic("here")
 		}
-		if p.Attacks(from, occ)&bit != 0 {
+		if p.Attacks(from, totOcc)&bit != 0 {
 			return true
 		}
 	}
@@ -229,14 +230,41 @@ func (b *Board) isSquareAttacked(c Coord, color Piece) bool {
 
 // wouldKingBeInCheck returns true if a move would result in an illegal check.
 func (b *Board) wouldKingBeInCheck(m *Move) bool {
+	wasInCheck := b.IsCheck()
+
+	// First, make the move, then we check for checks.
+	b.MakeMove(*m)
+
+	// Get the occupancy bits. We minimize the spaces to check by passing in
+	// only the occupancy we need.
+	var moveOcc, checkOcc Bit
+	if m.p.Color() == White {
+		if wasInCheck {
+			checkOcc = b.occupancy(Black)
+		} else {
+			checkOcc = b.state.bSlider
+		}
+		moveOcc = b.state.wSlider | Bit(1<<m.to.Idx())
+	} else {
+		if wasInCheck {
+			checkOcc = b.occupancy(White)
+		} else {
+			checkOcc = b.state.wSlider
+		}
+		moveOcc = b.state.bSlider | Bit(1<<m.to.Idx())
+	}
+
 	// So, if the king was in check, we need to see if we would block the
 	// check, or take the checking piece.
-	b.MakeMove(*m)
-	check := b.IsKingInCheck(m.p.Color())
-	if b.IsKingInCheck(m.p.OppositeColor()) {
-		m.isCheck = true
+	check := b.isSquareAttacked(b.KingLoc(m.p.Color()), checkOcc, m.p.OppositeColor())
+	if !check { // Save some time if we would have had a check.
+		m.isCheck = b.isSquareAttacked(b.KingLoc(m.p.OppositeColor()), moveOcc, m.p.Color())
 	}
+
+	// Now, unmake the move.
 	b.UnmakeMove()
+
+	// And return if the king would have been in check.
 	return check
 }
 
@@ -247,7 +275,7 @@ func (b *Board) isLegalMove(m *Move) bool {
 
 	if m.p.IsKing() {
 		// Can't move into check
-		if b.isSquareAttacked(m.to, m.p.OppositeColor()) {
+		if b.isSquareAttacked(m.to, b.occupancy(m.p.OppositeColor()), m.p.OppositeColor()) {
 			return false
 		}
 
@@ -269,7 +297,7 @@ func (b *Board) isLegalMove(m *Move) bool {
 			}
 
 			// Can't castle out of check.
-			if b.IsKingInCheck(m.p.Color()) {
+			if b.IsCheck() {
 				return false
 			}
 
@@ -286,7 +314,7 @@ func (b *Board) isLegalMove(m *Move) bool {
 			}
 
 			// Can't castle across a square in check.
-			if b.isSquareAttacked(mid, m.p.OppositeColor()) {
+			if b.isSquareAttacked(mid, b.occupancy(m.p.OppositeColor()), m.p.OppositeColor()) {
 				return false
 			}
 		}
@@ -388,7 +416,9 @@ queenCheckRook:
 			// Add a promotion for each piece.
 			for _, promotion := range []Piece{Knight, Bishop, Rook, Queen} {
 				move.promotion = promotion | p.Color()
-				moves = append(moves, move)
+				if b.isLegalMove(&move) {
+					moves = append(moves, move)
+				}
 			}
 		}
 	}
@@ -494,12 +524,6 @@ func (b *Board) updateEPTarget(m Move) {
 	}
 }
 
-// updateChecks updates the checks.
-func (b *Board) updateChecks() {
-	b.setCheck(White|King, b.isSquareAttacked(b.KingLoc(White|King), Black))
-	b.setCheck(Black|King, b.isSquareAttacked(b.KingLoc(Black|King), White))
-}
-
 // MakeMove applies the move, and updates all necessary Board state.
 func (b *Board) MakeMove(m Move) {
 	// Save some state so we can undo the move if asked.
@@ -517,6 +541,7 @@ func (b *Board) MakeMove(m Move) {
 	if m.p.IsPawn() || m.isCapture {
 		b.state.halfMove = 0
 	}
+	b.state.isCheck = m.isCheck
 	b.updateCastleState(m)
 	b.updateEPTarget(m)
 
@@ -525,7 +550,9 @@ func (b *Board) MakeMove(m Move) {
 	if m.isCapture {
 		b.set(Empty, m.to)
 	}
-	if !m.IsPromotion() {
+	if m.IsPromotion() && m.promotion != Empty {
+		b.set(m.promotion, m.to)
+	} else {
 		if m.IsCastle() {
 			dist := m.to.X() - m.from.X()
 			rookFrom, rookTo := CoordFromXY(7, m.from.Y()), CoordFromXY(5, m.from.Y())
@@ -546,11 +573,7 @@ func (b *Board) MakeMove(m Move) {
 			b.set(Empty, c)
 		}
 		b.set(m.p, m.to)
-	} else {
-		b.set(m.promotion, m.to)
 	}
-
-	b.updateChecks()
 
 	// Save off the move.
 	b.moves = append(b.moves, m)
@@ -775,8 +798,10 @@ func FromFEN(s string) (*Board, error) {
 		return nil, err
 	}
 
-	// Figure out if the kings are in check.
-	b.updateChecks()
+	// Figure out if the king is in check.
+	b.state.isCheck = b.isSquareAttacked(b.KingLoc(b.state.turn),
+		b.occupancy(b.state.turn.OppositeColor()),
+		b.state.turn.OppositeColor())
 
 	return b, nil
 }

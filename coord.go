@@ -24,7 +24,7 @@ func coordsFromBit(b Bit) []Coord {
 	return ret
 }
 
-type Coord int
+type Coord int8
 
 var InvalidCoord = Coord(-1)
 

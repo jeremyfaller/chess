@@ -259,10 +259,10 @@ func TestGetMoves(t *testing.T) {
 			"k7/4P3/8/8/8/8/8/K7 w - - 0 1",
 			coord("e7"),
 			toSet([]Move{
-				promo(White|Pawn, "e7", "e8", White|Queen),
+				check(promo(White|Pawn, "e7", "e8", White|Queen)),
 				promo(White|Pawn, "e7", "e8", White|Knight),
 				promo(White|Pawn, "e7", "e8", White|Bishop),
-				promo(White|Pawn, "e7", "e8", White|Rook),
+				check(promo(White|Pawn, "e7", "e8", White|Rook)),
 			}),
 		},
 		{
@@ -299,7 +299,6 @@ func TestGetMoves(t *testing.T) {
 		}
 		moves := toSet(b.GetMoves(nil, test.c))
 		if diff := pretty.Compare(test.moves, moves); diff != "" {
-			b.Print()
 			t.Errorf("[%s] moves unequal:\n%s", test.desc, diff)
 		}
 	}
@@ -307,38 +306,33 @@ func TestGetMoves(t *testing.T) {
 
 func TestFENChecks(t *testing.T) {
 	tests := []struct {
-		desc               string
-		fen                string
-		isWCheck, isBCheck bool
+		desc    string
+		fen     string
+		isCheck bool
 	}{
 		{
 			"no check",
 			"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
-			false,
 			false,
 		},
 		{
 			"white check",
 			"1k6/8/8/8/8/4r3/8/R3K2R w - - 0 1",
 			true,
-			false,
 		},
 		{
 			"black check",
 			"r3k2r/8/4R3/8/8/8/8/1K6 b - - 0 1",
-			false,
 			true,
 		},
 		{
 			"no pawn check",
 			"k7/P7/8/8/8/8/8/K7 b - - 0 1",
 			false,
-			false,
 		},
 		{
 			"pawn check",
 			"k7/1P6/8/8/8/8/8/K7 b - - 0 1",
-			false,
 			true,
 		},
 	}
@@ -348,11 +342,8 @@ func TestFENChecks(t *testing.T) {
 		if err != nil {
 			t.Fatalf("[%s] unexpected error: %v", test.desc, err)
 		}
-		if v := b.IsKingInCheck(White); v != test.isWCheck {
-			t.Errorf("[%s] IsKingInCheck(White) = %v, expected = %v", test.desc, v, test.isWCheck)
-		}
-		if v := b.IsKingInCheck(Black); v != test.isBCheck {
-			t.Errorf("[%s] IsKingInCheck(Black) = %v, expected = %v", test.desc, v, test.isBCheck)
+		if v := b.IsCheck(); v != test.isCheck {
+			t.Errorf("[%s] IsCheck() = %v, expected = %v", test.desc, v, test.isCheck)
 		}
 	}
 }
@@ -530,6 +521,7 @@ func TestPerft(t *testing.T) {
 		move := func(p Piece, from, to string) Move {
 			return Move{p: p, from: coord(from), to: coord(to)}
 		}
+		check := func(m Move) Move { m.isCheck = true; return m }
 	*/
 	tests := []struct {
 		desc   string
