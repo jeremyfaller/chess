@@ -212,15 +212,12 @@ func (b *Board) KingLoc(color Piece) Coord {
 }
 
 // isSquareAttacked returns true if a given square is attacked by the given color.
-func (b *Board) isSquareAttacked(c Coord, v Bit, color Piece) bool {
+func (b *Board) isSquareAttacked(c Coord, v Bit) bool {
 	bit := Bit(1 << c.Idx())
 	totOcc := b.state.wOcc | b.state.bOcc
 	for v != 0 {
 		from := v.NextCoord()
 		p := b.at(from)
-		if p.Color() != color {
-			panic("here")
-		}
 		if p.Attacks(from, totOcc)&bit != 0 {
 			return true
 		}
@@ -256,9 +253,9 @@ func (b *Board) wouldKingBeInCheck(m *Move) bool {
 
 	// So, if the king was in check, we need to see if we would block the
 	// check, or take the checking piece.
-	check := b.isSquareAttacked(b.KingLoc(m.p.Color()), checkOcc, m.p.OppositeColor())
+	check := b.isSquareAttacked(b.KingLoc(m.p.Color()), checkOcc)
 	if !check { // Save some time if we would have had a check.
-		m.isCheck = b.isSquareAttacked(b.KingLoc(m.p.OppositeColor()), moveOcc, m.p.Color())
+		m.isCheck = b.isSquareAttacked(b.KingLoc(m.p.OppositeColor()), moveOcc)
 	}
 
 	// Now, unmake the move.
@@ -275,7 +272,7 @@ func (b *Board) isLegalMove(m *Move) bool {
 
 	if m.p.IsKing() {
 		// Can't move into check
-		if b.isSquareAttacked(m.to, b.occupancy(m.p.OppositeColor()), m.p.OppositeColor()) {
+		if b.isSquareAttacked(m.to, b.occupancy(m.p.OppositeColor())) {
 			return false
 		}
 
@@ -314,7 +311,7 @@ func (b *Board) isLegalMove(m *Move) bool {
 			}
 
 			// Can't castle across a square in check.
-			if b.isSquareAttacked(mid, b.occupancy(m.p.OppositeColor()), m.p.OppositeColor()) {
+			if b.isSquareAttacked(mid, b.occupancy(m.p.OppositeColor())) {
 				return false
 			}
 		}
@@ -800,8 +797,7 @@ func FromFEN(s string) (*Board, error) {
 
 	// Figure out if the king is in check.
 	b.state.isCheck = b.isSquareAttacked(b.KingLoc(b.state.turn),
-		b.occupancy(b.state.turn.OppositeColor()),
-		b.state.turn.OppositeColor())
+		b.occupancy(b.state.turn.OppositeColor()))
 
 	return b, nil
 }
