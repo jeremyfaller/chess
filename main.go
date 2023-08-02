@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"log"
 	"os"
 	"runtime/pprof"
@@ -13,7 +12,6 @@ var (
 	cpuProfile   = flag.String("cpuprofile", "", "filename where we should write the cpu profile")
 	memProfile   = flag.String("memprofile", "", "filename where we should write the mem profile")
 	traceProfile = flag.String("traceprofile", "", "filename where we should write trace output")
-	depth        = flag.Int("depth", 6, "perft depth")
 )
 
 func main() {
@@ -42,6 +40,8 @@ func main() {
 		defer trace.Stop()
 	}
 
-	b := New()
-	fmt.Printf("perft(%d) = %d\n", *depth, b.Perft(*depth))
+	var u UCI
+	if err := u.Run(); err != nil {
+		log.Fatal(err)
+	}
 }

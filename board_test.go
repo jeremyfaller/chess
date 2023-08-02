@@ -547,8 +547,8 @@ func TestPerft(t *testing.T) {
 		{"kiwipete(5)", "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1", 5, 193690690, nil},
 		/*
 			{"kiwipete(6)", "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1", 6, 8031647685, nil},
-			{"position 5", "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8", 5, 89941194, nil},
 		*/
+		{"position 5", "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8", 5, 89941194, nil},
 	}
 
 	for i, test := range tests {
@@ -742,6 +742,34 @@ func TestHashSame(t *testing.T) {
 	}
 	if h1, h2 := b1.ZHash(), b2.ZHash(); h1 != h2 {
 		t.Errorf("hash %x != %x", h1, h2)
+	}
+}
+
+func TestBoardWithMoves(t *testing.T) {
+	tests := []struct {
+		fen   string
+		moves []string
+		isErr bool
+		res   string
+	}{
+		{"k7/8/8/8/8/8/8/K7 w - - 0 1", []string{"a1a2"}, false, "k7/8/8/8/8/8/K7/8 b - - 1 1"},
+		{"k7/8/8/8/8/8/8/K7 b - - 1 1", []string{"a8a7"}, false, "8/k7/8/8/8/8/8/K7 w - - 2 2"},
+		{"r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1", []string{"a1a2"}, false, "r3k2r/8/8/8/8/8/R7/4K2R b Kkq - 1 1"},
+		{"r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1", []string{"e1g1"}, false, "r3k2r/8/8/8/8/8/8/R4RK1 b kq - 1 1"},
+		{"k7/1Q6/8/8/8/8/8/K7 w - - 0 1", []string{"b7b8q"}, false, "kQ6/8/8/8/8/8/8/K7 b - - 1 1"},
+	}
+
+	for i, test := range tests {
+		b, err := FromFEN(test.fen)
+		if err != nil {
+			t.Errorf("[%d] error creating board: %v", i, err)
+		}
+		if err := b.ApplyMoves(test.moves); err != nil && test.isErr == false {
+			t.Errorf("[%d] b.ApplyMoves(%v) = %v, expected nil", i, test.moves, err)
+		}
+		if fen := b.FENString(); fen != test.res {
+			t.Errorf("[%d] resultant FEN = %q, expected %q", i, fen, test.res)
+		}
 	}
 }
 

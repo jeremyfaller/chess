@@ -47,6 +47,15 @@ var scores = []Score{
 	-100000, // Black|King
 }
 
+var runeToColorlessPiece = map[rune]Piece{
+	'p': Pawn,
+	'n': Knight,
+	'b': Bishop,
+	'r': Rook,
+	'q': Queen,
+	'k': King,
+}
+
 func (p Piece) IsWhite() bool {
 	return p&Black == 0
 }
