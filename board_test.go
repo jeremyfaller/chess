@@ -2,6 +2,7 @@ package main
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/kylelemons/godebug/pretty"
@@ -769,6 +770,36 @@ func TestBoardWithMoves(t *testing.T) {
 		}
 		if fen := b.FENString(); fen != test.res {
 			t.Errorf("[%d] resultant FEN = %q, expected %q", i, fen, test.res)
+		}
+	}
+}
+
+func TestIsDrawn(t *testing.T) {
+	tests := []struct {
+		fen   string
+		moves []string
+		drawn bool
+	}{
+		{StartingFEN, []string{"b1c3", "b8c6", "c3b1", "c6b8", "b1c3", "b8c6", "c3b1", "c6b8"}, true},
+		{strings.Replace(StartingFEN, "0 1", "49 1", 1), []string{"b1c3"}, true},
+		{strings.Replace(StartingFEN, "0 1", "49 1", 1), []string{"a2a4"}, false},
+	}
+
+	for i, test := range tests {
+		b, err := FromFEN(test.fen)
+		if err != nil {
+			t.Fatalf("error parsing board: %q – %v", test.fen, err)
+		}
+		for j, m := range test.moves {
+			if b.isDrawn() {
+				t.Errorf("[%d], isDrawn() == true, expected false", j)
+			}
+			if err := b.ApplyStringMove(m); err != nil {
+				t.Errorf("error applying move: %v %v", m, err)
+			}
+		}
+		if b.isDrawn() != test.drawn {
+			t.Errorf("[%d] isDrawn() == %t, expected %t", i, b.isDrawn(), test.drawn)
 		}
 	}
 }

@@ -40,8 +40,10 @@ type Board struct {
 	state    BoardState
 	moves    []Move
 	oldState []BoardState
+	seen     map[Hash]int
 }
 
+// at returns the piece at the specified location or Empty if there is none.
 func (b *Board) at(c Coord) Piece {
 	return b.state.spaces[c.Idx()]
 }
@@ -54,6 +56,7 @@ func (b *Board) occupancy(color Piece) Bit {
 	return b.state.bOcc
 }
 
+// set puts a piece on the board – adjusting all the internal state.
 func (b *Board) set(p Piece, c Coord) {
 	idx := c.Idx()
 
@@ -101,6 +104,18 @@ func (b *Board) set(p Piece, c Coord) {
 
 	// And, save the piece.
 	b.state.spaces[idx] = p
+}
+
+// isDrawn returns true if the position is a draw.
+func (b *Board) isDrawn() bool {
+	if b.state.halfMove >= 50 {
+		return true
+	}
+	hash := b.ZHash()
+	if cnt, ok := b.seen[hash]; ok && cnt >= 3 {
+		return true
+	}
+	return false
 }
 
 // ZHash returns the Zobrist hash for this board state.
@@ -574,6 +589,7 @@ func (b *Board) MakeMove(m Move) {
 
 	// Save off the move.
 	b.moves = append(b.moves, m)
+	b.seen[b.ZHash()] += 1
 }
 
 // UnmakeMove undoes the last move.
@@ -584,6 +600,12 @@ func (b *Board) UnmakeMove() {
 	}
 
 	// Pop the last move.
+	hash := b.ZHash()
+	if cnt := b.seen[hash] - 1; cnt <= 0 {
+		delete(b.seen, hash)
+	} else {
+		b.seen[hash] = cnt
+	}
 	b.moves = b.moves[:len(b.moves)-1]
 	b.state = b.oldState[len(b.oldState)-1]
 	b.oldState = b.oldState[:len(b.oldState)-1]
@@ -606,8 +628,11 @@ func (b *Board) GetMove(from, to Coord) (Move, error) {
 	return Move{}, fmt.Errorf("invalid move: %v", Move{from: from, to: to})
 }
 
-// ApplyMoves applies a list of algebraically defined moves.
-func (b *Board) ApplyMoves(moves []string) error {
+// ApplyStringMove applies a string move.
+func (b *Board) ApplyStringMove(mStr string) error {
+	if len(mStr) == 0 {
+		return nil
+	}
 	parseMove := func(m string) (Move, error) {
 		if len(m) != 4 && len(m) != 5 {
 			return Move{}, fmt.Errorf("invalid move: %q, len = %d", m, len(m))
@@ -634,18 +659,23 @@ func (b *Board) ApplyMoves(moves []string) error {
 		return Move{from: from, to: to, p: p, promotion: promotion}, nil
 	}
 
+	move, err := parseMove(mStr)
+	if err != nil {
+		return err
+	}
+	if !b.isLegalMove(&move) {
+		return fmt.Errorf("move wasn't legal: %q", mStr)
+	}
+	b.MakeMove(move)
+	return nil
+}
+
+// ApplyMoves applies a list of algebraically defined moves.
+func (b *Board) ApplyMoves(moves []string) error {
 	for i, mStr := range moves {
-		if len(mStr) == 0 { // ignore blank moves
-			continue
-		}
-		move, err := parseMove(mStr)
-		if err != nil {
+		if err := b.ApplyStringMove(mStr); err != nil {
 			return fmt.Errorf("move[%d] error: %w", i, err)
 		}
-		if !b.isLegalMove(&move) {
-			return fmt.Errorf("move[%d] wasn't legal: %q", i, mStr)
-		}
-		b.MakeMove(move)
 	}
 	return nil
 }
@@ -720,6 +750,7 @@ func EmptyBoard() *Board {
 		},
 		oldState: make([]BoardState, 0, 200),
 		moves:    make([]Move, 0, 200),
+		seen:     make(map[Hash]int, 10000),
 	}
 }
 
@@ -842,6 +873,9 @@ func FromFEN(s string) (*Board, error) {
 	// Figure out if the king is in check.
 	b.state.isCheck = b.isSquareAttacked(b.KingLoc(b.state.turn),
 		b.occupancy(b.state.turn.OppositeColor()))
+
+	// Save the state.
+	b.seen[b.ZHash()] += 1
 
 	return b, nil
 }
