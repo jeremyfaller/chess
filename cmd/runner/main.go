@@ -19,6 +19,9 @@ type prog struct {
 	scanner *bufio.Scanner
 }
 
+// NewProg makes a new prog interface.
+//
+// Note that the program has already been started.
 func NewProg(name string) (*prog, error) {
 	path, err := exec.LookPath(name)
 	if err != nil {
@@ -38,10 +41,10 @@ func NewProg(name string) (*prog, error) {
 	return &prog{path: path, prog: cmd, stdin: stdin, stdout: stdout, scanner: scanner}, nil
 }
 
-// Writeln writes to a prog.
+// writeln writes to a prog.
 //
 // It doesn't wait for a response. If cmd doesn't contain a newline, one is added.
-func (p *prog) Writeln(cmd string) error {
+func (p *prog) writeln(cmd string) error {
 	toWrite := cmd
 	if !strings.HasSuffix(cmd, "\n") {
 		toWrite += "\n"
@@ -58,7 +61,7 @@ func (p *prog) Writeln(cmd string) error {
 
 // RunCommand runs a command to a program, waiting for an output.
 func (p *prog) RunCommand(cmd string, output string) error {
-	if err := p.Writeln(cmd); err != nil {
+	if err := p.writeln(cmd); err != nil {
 		return err
 	}
 
@@ -73,8 +76,8 @@ func (p *prog) RunCommand(cmd string, output string) error {
 
 func run(p1, p2 *prog) error {
 	for _, p := range []*prog{p1, p2} {
-		err := p.RunCommand("uci", "uciok")
-		if err != nil {
+		if err := p.RunCommand("uci", "uciok"); err != nil {
+			return err
 		}
 	}
 	return nil
