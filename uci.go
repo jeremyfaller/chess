@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"context"
 	"fmt"
 	"os"
 	"runtime"
@@ -17,16 +16,9 @@ var (
 	unknownCmdErr = "Unknown command"
 )
 
-func (u *UCI) defaultContext() context.Context {
-	u.ctx, u.cancel = context.WithCancel(context.Background())
-	return u.ctx
-}
-
 type UCI struct {
-	e      *Eval
-	b      *Board
-	ctx    context.Context
-	cancel context.CancelFunc
+	e *Eval
+	b *Board
 }
 
 func trim(s string) string {
@@ -129,9 +121,7 @@ func (u *UCI) goCmd(cmd string) error {
 }
 
 func (u *UCI) stopCmd() {
-	if u.cancel != nil {
-		u.cancel()
-	}
+	u.e.Stop()
 }
 
 func (u *UCI) debug(opts []string) {

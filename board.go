@@ -880,8 +880,8 @@ func FromFEN(s string) (*Board, error) {
 	return b, nil
 }
 
-// CurrentPlayerScore returns the score for the current player.
-func (b *Board) CurrentPlayerScore() Score {
+// CurrentPlayerMaterial returns the score for the current player.
+func (b *Board) CurrentPlayerMaterial() Score {
 	if b.state.turn == White {
 		return b.state.score
 	}

@@ -1,9 +1,13 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"sync"
 	"time"
 )
+
+type doneChan chan struct{}
 
 type Eval struct {
 	b         *Board
@@ -14,6 +18,13 @@ type Eval struct {
 
 	// benchmark evaluations
 	totalTime time.Duration
+
+	// Functions for starting/stopping evaluation.
+	m        sync.Mutex
+	duration time.Duration
+	ctx      context.Context
+	cancel   context.CancelFunc
+	running  bool
 }
 
 type Line struct {
@@ -51,16 +62,28 @@ func (l *Line) add(m Move, s Score, d int) {
 
 // Creates a new Eval.
 func NewEval(b *Board, depth int) Eval {
-	e := Eval{
+	return Eval{
 		b:     b,
 		depth: depth,
 	}
-	return e
 }
 
 // SetDebug sets the debug state.
 func (e *Eval) SetDebug(v bool) {
 	e.debug = v
+}
+
+// SetDuration stops the current evaluation, and
+func (e *Eval) SetDuration(d time.Duration) *Eval {
+	if e.running {
+		panic("can't SetDuration on a running Eval")
+	}
+	e.duration = d
+	return e
+}
+
+func (e *Eval) IsRunning() bool {
+	return e.running
 }
 
 // sortMoves sorts the possible moves, trying to find good ones first.
@@ -105,7 +128,7 @@ func (e *Eval) sortMoves(moves []Move) int {
 
 // calc evaluates the current position, and returns a score.
 func (e *Eval) calc(player Piece) Score {
-	return e.b.CurrentPlayerScore()
+	return e.b.CurrentPlayerMaterial()
 }
 
 // Duration returns the length of time the evaluation has run.
@@ -134,12 +157,53 @@ func (e *Eval) TimeString() string {
 	return fmt.Sprintf("%dns", d.Nanoseconds())
 }
 
+// Stop stops an evaluation.
+func (e *Eval) Stop() {
+	e.m.Lock()
+	defer e.m.Unlock()
+
+	if e.cancel != nil {
+		fmt.Println("cancel called")
+		e.cancel()
+	}
+	e.Wait()
+}
+
+// setup creates the context for an evaluation.
+func (e *Eval) setup() {
+	e.ctx, e.cancel = context.WithTimeout(context.Background(), e.duration)
+}
+
+// Wait delays until an evaluation is done.
+func (e *Eval) Wait() {
+	for e.running {
+		time.Sleep(time.Millisecond)
+	}
+}
+
 // Start begins an evaluation.
-func (e *Eval) Start() {
+func (e *Eval) Start() *Eval {
+	// Stop and previously running evaluation.
+	e.Stop()
+
+	// And setup for a new one.
+	e.m.Lock()
+	defer e.m.Unlock()
+	e.setup()
+
 	origDepth := e.depth
 	movesToCheck := make([][]Move, origDepth+1)
 	player := e.b.state.turn
 	line := newLine(origDepth, player)
+
+	shouldCancel := func() bool {
+		select {
+		case <-e.ctx.Done():
+			return true
+		default:
+			return false
+		}
+	}
 
 	var search func(int, Score, Score) Score
 	search = func(d int, alpha, beta Score) Score {
@@ -168,6 +232,10 @@ func (e *Eval) Start() {
 
 		// Alpha-beta prune the search tree.
 		for _, move := range moves {
+			if shouldCancel() {
+				break
+			}
+
 			e.b.MakeMove(move)
 			evaluation := -search(d-1, -beta, -alpha)
 			e.b.UnmakeMove()
@@ -191,7 +259,12 @@ func (e *Eval) Start() {
 		return alpha
 	}
 
-	startTime := time.Now()
-	e.score = search(origDepth, minScore, maxScore)
-	e.totalTime += time.Now().Sub(startTime)
+	e.running = true
+	go func() {
+		startTime := time.Now()
+		e.score = search(origDepth, minScore, maxScore)
+		e.totalTime += time.Now().Sub(startTime)
+		e.running = false
+	}()
+	return e
 }
