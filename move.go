@@ -128,6 +128,15 @@ func (m Move) figureString() string {
 	return fmt.Sprintf("%s%s%s%s%s", m.p.NoteString(), capString, m.to.String(), m.promotionString(), m.checkString())
 }
 
+// longAlgrbraicString returns long algebraic moves.
+func (m Move) longAlgebraicString() string {
+	promo := ""
+	if m.IsPromotion() {
+		promo = m.promotion.NoteString()
+	}
+	return fmt.Sprintf("%s%s%s", m.from.String(), m.to.String(), promo)
+}
+
 // String returns a string for the given Move. Note that it doesn't handle
 // ambiguous moves, eg Nef4.
 func (m Move) String() string {
@@ -135,7 +144,7 @@ func (m Move) String() string {
 	if m.IsCastle() {
 		return m.castleString()
 	}
-	return m.algebraicString()
+	return m.longAlgebraicString()
 }
 
 // IsVertical returns true if a Move is only a vertical move.

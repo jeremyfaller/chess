@@ -123,17 +123,17 @@ func (p Piece) Score() Score {
 func (p Piece) NoteString() string {
 	switch p.Colorless() {
 	case Pawn:
-		return "P"
+		return "p"
 	case King:
-		return "K"
+		return "k"
 	case Knight:
-		return "N"
+		return "n"
 	case Bishop:
-		return "B"
+		return "b"
 	case Queen:
-		return "Q"
+		return "q"
 	case Rook:
-		return "R"
+		return "r"
 	}
 	return "?"
 }
