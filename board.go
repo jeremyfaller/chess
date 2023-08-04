@@ -628,38 +628,39 @@ func (b *Board) GetMove(from, to Coord) (Move, error) {
 	return Move{}, fmt.Errorf("invalid move: %v", Move{from: from, to: to})
 }
 
+func (b *Board) parseAlgebraic(m string) (Move, error) {
+	if len(m) != 4 && len(m) != 5 {
+		return Move{}, fmt.Errorf("invalid move: %q, len = %d", m, len(m))
+	}
+	from, err := CoordFromString(m[0:2])
+	if err != nil {
+		return Move{}, fmt.Errorf("error making coordinate: %w", err)
+	}
+	to, err := CoordFromString(m[2:4])
+	if err != nil {
+		return Move{}, fmt.Errorf("error making coordinate: %w", err)
+	}
+	var promotion Piece
+	if len(m) == 5 {
+		var ok bool
+		if promotion, ok = runeToColorlessPiece[unicode.ToLower(rune(m[4]))]; !ok {
+			return Move{}, fmt.Errorf("unknown promotion: %c", m[4])
+		}
+	}
+	p := b.at(from)
+	if p == Empty {
+		return Move{}, fmt.Errorf("no piece at: %v", from)
+	}
+	return Move{from: from, to: to, p: p, promotion: promotion}, nil
+}
+
 // ApplyStringMove applies a string move.
 func (b *Board) ApplyStringMove(mStr string) error {
 	if len(mStr) == 0 {
 		return nil
 	}
-	parseMove := func(m string) (Move, error) {
-		if len(m) != 4 && len(m) != 5 {
-			return Move{}, fmt.Errorf("invalid move: %q, len = %d", m, len(m))
-		}
-		from, err := CoordFromString(m[0:2])
-		if err != nil {
-			return Move{}, fmt.Errorf("error making coordinate: %w", err)
-		}
-		to, err := CoordFromString(m[2:4])
-		if err != nil {
-			return Move{}, fmt.Errorf("error making coordinate: %w", err)
-		}
-		var promotion Piece
-		if len(m) == 5 {
-			var ok bool
-			if promotion, ok = runeToColorlessPiece[unicode.ToLower(rune(m[4]))]; !ok {
-				return Move{}, fmt.Errorf("unknown promotion: %c", m[4])
-			}
-		}
-		p := b.at(from)
-		if p == Empty {
-			return Move{}, fmt.Errorf("no piece at: %v", from)
-		}
-		return Move{from: from, to: to, p: p, promotion: promotion}, nil
-	}
 
-	move, err := parseMove(mStr)
+	move, err := b.parseAlgebraic(mStr)
 	if err != nil {
 		return err
 	}
