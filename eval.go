@@ -10,9 +10,10 @@ type Eval struct {
 	positions int
 	depth     int
 	score     Score
+	debug     bool
 
 	// benchmark evaluations
-	startTime, endTime time.Time
+	totalTime time.Duration
 }
 
 type Line struct {
@@ -55,6 +56,11 @@ func NewEval(b *Board, depth int) Eval {
 		depth: depth,
 	}
 	return e
+}
+
+// SetDebug sets the debug state.
+func (e *Eval) SetDebug(v bool) {
+	e.debug = v
 }
 
 // sortMoves sorts the possible moves, trying to find good ones first.
@@ -104,7 +110,7 @@ func (e *Eval) calc(player Piece) Score {
 
 // Duration returns the length of time the evaluation has run.
 func (e *Eval) Duration() time.Duration {
-	return e.endTime.Sub(e.startTime)
+	return e.totalTime
 }
 
 // TimeString returns the length of time it took to do the evaluation.
@@ -185,7 +191,7 @@ func (e *Eval) Start() {
 		return alpha
 	}
 
-	e.startTime = time.Now()
+	startTime := time.Now()
 	e.score = search(origDepth, minScore, maxScore)
-	e.endTime = time.Now()
+	e.totalTime += time.Now().Sub(startTime)
 }

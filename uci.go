@@ -5,13 +5,16 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 )
 
 var (
-	welcome = `GopherChess by Jeremy Faller (jeremy.faller@gmail.com)`
-	ws      = " \t"
+	welcome       = `GopherChess by Jeremy Faller (jeremy.faller@gmail.com)`
+	ws            = " \t"
+	optionErr     = "No such option"
+	unknownCmdErr = "Unknown command"
 )
 
 func (u *UCI) defaultContext() context.Context {
@@ -20,6 +23,7 @@ func (u *UCI) defaultContext() context.Context {
 }
 
 type UCI struct {
+	e      *Eval
 	b      *Board
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -44,8 +48,11 @@ func (u *UCI) Writeln(s string) {
 }
 
 func (u *UCI) listOptions() {
+	n := runtime.GOMAXPROCS(0)
 	u.Writeln("id name GopherChess")
 	u.Writeln("id author Jeremy Faller (jeremy.faller@gmail.com)")
+	u.Writeln("")
+	u.Writeln(fmt.Sprintf("option name Threads type spin default %d min 1 max %d", n, n))
 	u.Writeln("uciok")
 }
 
@@ -53,13 +60,26 @@ func (u *UCI) isReady() {
 	u.Writeln("readyok")
 }
 
-func (u *UCI) setOption(option []string) {
-	if len(option) == 0 {
-		u.Writeln("No such option:")
+func (u *UCI) printError(str string, cmds []string) {
+	u.Writeln(fmt.Sprintf("%s: %q", str, strings.Join(cmds, " ")))
+}
+
+func (u *UCI) setOption(tokens []string) {
+	if len(tokens) != 3 && tokens[1] != "value" {
+		u.printError(optionErr, tokens)
+		return
 	}
-	switch option[0] {
+
+	switch tokens[0] {
+	case "Thread":
+		if v, err := strconv.Atoi(tokens[2]); err != nil {
+			u.printError(optionErr, tokens)
+		} else {
+			runtime.GOMAXPROCS(v)
+		}
+
 	default:
-		u.Writeln("No such option")
+		u.printError(optionErr, tokens)
 	}
 }
 
@@ -114,6 +134,21 @@ func (u *UCI) stopCmd() {
 	}
 }
 
+func (u *UCI) debug(opts []string) {
+	if len(opts) != 1 {
+		u.printError(unknownCmdErr, opts)
+		return
+	}
+	switch opts[0] {
+	case "on":
+		u.e.SetDebug(true)
+	case "off":
+		u.e.SetDebug(false)
+	default:
+		u.printError(unknownCmdErr, opts)
+	}
+}
+
 func (u *UCI) Run() error {
 	scanner := bufio.NewScanner(os.Stdin)
 	if err := u.newGame(); err != nil {
@@ -130,22 +165,24 @@ func (u *UCI) Run() error {
 		strs := removeBlanks(strings.Split(str, " "))
 		cmdStripped := trim(strings.TrimPrefix(str, strs[0]))
 		switch strs[0] {
-		case "uci":
-			u.listOptions()
+		case "debug":
+			u.debug(strs[1:])
 		case "isready":
 			u.isReady()
-		case "setoption":
-			u.setOption(strs[1:])
-		case "ucinewgame":
-			err = u.newGame()
-		case "position":
-			err = u.position(cmdStripped)
 		case "go":
 			err = u.goCmd(cmdStripped)
+		case "position":
+			err = u.position(cmdStripped)
+		case "setoption":
+			u.setOption(strs[2:])
 		case "stop":
 			u.stopCmd()
+		case "uci":
+			u.listOptions()
+		case "ucinewgame":
+			err = u.newGame()
 		default:
-			err = fmt.Errorf("Unknown command: %s", str)
+			u.printError(unknownCmdErr, strs)
 		}
 
 		if err != nil {
