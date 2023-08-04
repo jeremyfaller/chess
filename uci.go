@@ -14,11 +14,21 @@ var (
 	ws            = " \t"
 	optionErr     = "No such option"
 	unknownCmdErr = "Unknown command"
+	numProcs      int
 )
+
+func init() {
+	numProcs = runtime.GOMAXPROCS(0)
+}
 
 type UCI struct {
 	e *Eval
 	b *Board
+}
+
+func NewUCI() *UCI {
+	eval := NewEval(5)
+	return &UCI{e: &eval}
 }
 
 func trim(s string) string {
@@ -40,11 +50,11 @@ func (u *UCI) Writeln(s string) {
 }
 
 func (u *UCI) listOptions() {
-	n := runtime.GOMAXPROCS(0)
 	u.Writeln("id name GopherChess")
 	u.Writeln("id author Jeremy Faller (jeremy.faller@gmail.com)")
 	u.Writeln("")
-	u.Writeln(fmt.Sprintf("option name Threads type spin default %d min 1 max %d", n, n))
+	u.Writeln(fmt.Sprintf("option name Thread type spin default %d min 1 max %d", numProcs, numProcs))
+	u.Writeln("option name Book type check default true")
 	u.Writeln("uciok")
 }
 
@@ -58,6 +68,7 @@ func (u *UCI) printError(str string, cmds []string) {
 
 func (u *UCI) setOption(tokens []string) {
 	if len(tokens) != 3 && tokens[1] != "value" {
+		fmt.Println("len", tokens)
 		u.printError(optionErr, tokens)
 		return
 	}
@@ -69,7 +80,15 @@ func (u *UCI) setOption(tokens []string) {
 		} else {
 			runtime.GOMAXPROCS(v)
 		}
-
+	case "Book":
+		if tokens[2] == "true" {
+			u.e.SetBook(true)
+		} else if tokens[2] == "false" {
+			u.e.SetBook(false)
+		} else {
+			fmt.Println("HERE")
+			u.printError(optionErr, tokens)
+		}
 	default:
 		u.printError(optionErr, tokens)
 	}
@@ -164,7 +183,7 @@ func (u *UCI) Run() error {
 		case "position":
 			err = u.position(cmdStripped)
 		case "setoption":
-			u.setOption(strs[2:])
+			u.setOption(strs[1:])
 		case "stop":
 			u.stopCmd()
 		case "uci":

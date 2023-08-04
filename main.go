@@ -40,7 +40,7 @@ func main() {
 		defer trace.Stop()
 	}
 
-	var u UCI
+	u := NewUCI()
 	if err := u.Run(); err != nil {
 		log.Fatal(err)
 	}

@@ -45,8 +45,8 @@ func TestMateIn(t *testing.T) {
 				t.Fatalf("[%d] error in fen %v", i, err)
 			}
 
-			e := NewEval(b, test.depth)
-			e.Start().Wait()
+			e := NewEval(test.depth)
+			e.Start(b).Wait()
 			if e.score != checkmate {
 				t.Errorf("[%d] was not a checkmate %v", i, test.fen)
 			}
@@ -55,8 +55,8 @@ func TestMateIn(t *testing.T) {
 }
 
 func TestEvalCancel(t *testing.T) {
-	e := NewEval(New(), 1000)
-	e.Start()
+	e := NewEval(1000)
+	e.Start(New())
 	if !e.IsRunning() {
 		t.Fatalf("expected eval running")
 	}
@@ -69,9 +69,9 @@ func TestEvalCancel(t *testing.T) {
 func TestEvalTimeout(t *testing.T) {
 	t.Parallel()
 	dur := 10 * time.Millisecond
-	e := NewEval(New(), 1000)
+	e := NewEval(1000)
 	e.SetDuration(dur)
-	e.Start()
+	e.Start(New())
 	if !e.IsRunning() {
 		t.Fatalf("expected eval running")
 	}
@@ -91,8 +91,8 @@ func mateBenchmarker(b *testing.B, d int, tests []evalTest) {
 			if err != nil {
 				panic(fmt.Sprintf("[%d] error in fen %v", i, err))
 			}
-			e := NewEval(b, test.depth)
-			e.Start().Wait()
+			e := NewEval(test.depth)
+			e.Start(b).Wait()
 			if e.score != checkmate {
 				panic(fmt.Sprintf("[%d] was not a checkmate %v", i, test.fen))
 			}

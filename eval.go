@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"sync"
 	"time"
 )
@@ -10,11 +11,10 @@ import (
 type doneChan chan struct{}
 
 type Eval struct {
-	b         *Board
 	positions int
 	depth     int
 	score     Score
-	debug     bool
+	rand      *rand.Rand
 
 	// benchmark evaluations
 	totalTime time.Duration
@@ -25,6 +25,10 @@ type Eval struct {
 	ctx      context.Context
 	cancel   context.CancelFunc
 	running  bool
+
+	// Options
+	useBook bool
+	debug   bool
 }
 
 type Line struct {
@@ -61,16 +65,22 @@ func (l *Line) add(m Move, s Score, d int) {
 }
 
 // Creates a new Eval.
-func NewEval(b *Board, depth int) Eval {
+func NewEval(depth int) Eval {
 	return Eval{
-		b:     b,
-		depth: depth,
+		depth:   depth,
+		useBook: true,
+		rand:    rand.New(rand.NewSource(time.Now().UnixNano())),
 	}
 }
 
 // SetDebug sets the debug state.
 func (e *Eval) SetDebug(v bool) {
 	e.debug = v
+}
+
+// SetBook determines if the evaluation engine will use the book.
+func (e *Eval) SetBook(v bool) {
+	e.useBook = v
 }
 
 // SetDuration stops the current evaluation, and
@@ -127,8 +137,8 @@ func (e *Eval) sortMoves(moves []Move) int {
 }
 
 // calc evaluates the current position, and returns a score.
-func (e *Eval) calc(player Piece) Score {
-	return e.b.CurrentPlayerMaterial()
+func (e *Eval) calc(b *Board) Score {
+	return b.CurrentPlayerMaterial()
 }
 
 // Duration returns the length of time the evaluation has run.
@@ -163,7 +173,6 @@ func (e *Eval) Stop() {
 	defer e.m.Unlock()
 
 	if e.cancel != nil {
-		fmt.Println("cancel called")
 		e.cancel()
 	}
 	e.Wait()
@@ -182,7 +191,7 @@ func (e *Eval) Wait() {
 }
 
 // Start begins an evaluation.
-func (e *Eval) Start() *Eval {
+func (e *Eval) Start(b *Board) *Eval {
 	// Stop and previously running evaluation.
 	e.Stop()
 
@@ -193,7 +202,7 @@ func (e *Eval) Start() *Eval {
 
 	origDepth := e.depth
 	movesToCheck := make([][]Move, origDepth+1)
-	player := e.b.state.turn
+	player := b.state.turn
 	line := newLine(origDepth, player)
 
 	shouldCancel := func() bool {
@@ -205,6 +214,13 @@ func (e *Eval) Start() *Eval {
 		}
 	}
 
+	if e.useBook {
+		move, found := getBook(b, e.rand)
+		if found {
+			fmt.Println("in book:", move)
+		}
+	}
+
 	var search func(int, Score, Score) Score
 	search = func(d int, alpha, beta Score) Score {
 		// Stats.
@@ -212,12 +228,12 @@ func (e *Eval) Start() *Eval {
 
 		// Get a link to our local slice.
 		moves := movesToCheck[origDepth-d][:0]
-		moves = e.b.PossibleMoves(moves)
+		moves = b.PossibleMoves(moves)
 		e.sortMoves(moves)
 
 		// If no moves, we could be in stalemate or checkmate.
 		if len(moves) == 0 {
-			if e.b.IsCheck() {
+			if b.IsCheck() {
 				return checkmate
 			}
 			return stalemate
@@ -227,7 +243,7 @@ func (e *Eval) Start() *Eval {
 		// TODO(jfaller): Might want to do this after completing all
 		// checks or captures.
 		if d == 0 {
-			return e.calc(player)
+			return e.calc(b)
 		}
 
 		// Alpha-beta prune the search tree.
@@ -236,9 +252,9 @@ func (e *Eval) Start() *Eval {
 				break
 			}
 
-			e.b.MakeMove(move)
+			b.MakeMove(move)
 			evaluation := -search(d-1, -beta, -alpha)
-			e.b.UnmakeMove()
+			b.UnmakeMove()
 
 			// Add the move to the line.
 			line.add(move, evaluation, origDepth-d)
