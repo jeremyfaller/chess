@@ -106,6 +106,34 @@ func (b *Board) set(p Piece, c Coord) {
 	b.state.spaces[idx] = p
 }
 
+// hasEnoughMaterialForMate returns true if there's enough material for a mate.
+func (b *Board) hasEnoughMaterialForMate() bool {
+	for _, color := range []Piece{White, Black} {
+		v := b.occupancy(color)
+		var bishops, knights int
+		for v != 0 {
+			switch b.at(v.NextCoord()).Colorless() {
+			case Pawn, Rook, Queen:
+				return true
+			case Bishop:
+				bishops++
+			case Knight:
+				knights++
+			}
+			// If 2 bishops, or a bishop and knight, still can checkmate.
+			if (bishops >= 2) || (bishops >= 1 && knights >= 1) {
+				return true
+			}
+			// if 2 knights, can only checkmate if there's something else on the board
+			// for the opponent.
+			if knights >= 2 && b.occupancy(color.OppositeColor()).CountOnes() > 1 {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // isDrawn returns true if the position is a draw.
 func (b *Board) isDrawn() bool {
 	if b.state.halfMove >= 50 {
@@ -115,7 +143,7 @@ func (b *Board) isDrawn() bool {
 	if cnt, ok := b.seen[hash]; ok && cnt >= 3 {
 		return true
 	}
-	return false
+	return !b.hasEnoughMaterialForMate()
 }
 
 // ZHash returns the Zobrist hash for this board state.

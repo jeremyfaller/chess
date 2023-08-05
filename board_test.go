@@ -774,6 +774,35 @@ func TestBoardWithMoves(t *testing.T) {
 	}
 }
 
+func TestHasEnoughMaterialForMate(t *testing.T) {
+	tests := []struct {
+		desc   string
+		pieces []Piece
+		isMate bool
+	}{
+		{"only kings", []Piece{}, false},
+		{"with knight", []Piece{White | Knight}, false},
+		{"with 2xknight", []Piece{White | Knight, White | Knight}, false},
+		{"with 2xknight and extra", []Piece{White | Knight, White | Knight, Black | Knight}, true},
+		{"pawn", []Piece{White | Pawn}, true},
+		{"bishops", []Piece{Black | Bishop, Black | Bishop}, true},
+		{"rook", []Piece{White | Rook}, true},
+		{"queen", []Piece{Black | Queen}, true},
+	}
+
+	for _, test := range tests {
+		b := EmptyBoard()
+		b.set(White|King, CoordFromIdx(0))
+		b.set(Black|King, CoordFromIdx(1))
+		for i := range test.pieces {
+			b.set(test.pieces[i], CoordFromIdx(i+2))
+		}
+		if v := b.hasEnoughMaterialForMate(); v != test.isMate {
+			t.Errorf("[%v] hasEnoughMaterialForMate = %t, expected %t", test.desc, v, test.isMate)
+		}
+	}
+}
+
 func TestIsDrawn(t *testing.T) {
 	tests := []struct {
 		fen   string
@@ -783,6 +812,14 @@ func TestIsDrawn(t *testing.T) {
 		{StartingFEN, []string{"b1c3", "b8c6", "c3b1", "c6b8", "b1c3", "b8c6", "c3b1", "c6b8"}, true},
 		{strings.Replace(StartingFEN, "0 1", "49 1", 1), []string{"b1c3"}, true},
 		{strings.Replace(StartingFEN, "0 1", "49 1", 1), []string{"a2a4"}, false},
+		{"K7/8/8/8/8/8/8/k7 - - - 0 1", []string{}, true},
+		{"KR6/8/8/8/8/8/8/k7 - - - 0 1", []string{}, false},
+		{"KQ6/8/8/8/8/8/8/k7 - - - 0 1", []string{}, false},
+		{"KBB5/8/8/8/8/8/8/k7 - - - 0 1", []string{}, false},
+		{"KNB5/8/8/8/8/8/8/k7 - - - 0 1", []string{}, false},
+		{"K7/P7/8/8/8/8/8/k7 - - - 0 1", []string{}, false},
+		{"KNN5/8/8/8/8/8/8/k7 - - - 0 1", []string{}, true},
+		{"KNN5/8/8/8/8/8/n7/k7 - - - 0 1", []string{}, false},
 	}
 
 	for i, test := range tests {
