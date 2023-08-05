@@ -567,7 +567,7 @@ func TestPerft(t *testing.T) {
 					b.MakeMove(move)
 				}
 			}
-			if cnt := b.Perft(test.depth - len(test.moves)); cnt != test.target {
+			if cnt := b.Perft(test.depth-len(test.moves), Quiet); cnt != test.target {
 				t.Errorf("[%d] %s perft(%v) = %d, expected %d", i, test.desc, b.FENString(), cnt, test.target)
 			}
 		})
@@ -844,38 +844,38 @@ func TestIsDrawn(t *testing.T) {
 func BenchmarkPerft1(b *testing.B) {
 	board := New()
 	for n := 0; n < b.N; n++ {
-		board.Perft(1)
+		board.Perft(1, Quiet)
 	}
 }
 func BenchmarkPerft2(b *testing.B) {
 	board := New()
 	for n := 0; n < b.N; n++ {
-		board.Perft(2)
+		board.Perft(2, Quiet)
 	}
 }
 func BenchmarkPerft3(b *testing.B) {
 	board := New()
 	for n := 0; n < b.N; n++ {
-		board.Perft(3)
+		board.Perft(3, Quiet)
 	}
 }
 func BenchmarkPerft4(b *testing.B) {
 	board := New()
 	for n := 0; n < b.N; n++ {
-		board.Perft(4)
+		board.Perft(4, Quiet)
 	}
 }
 
 func BenchmarkPerft5(b *testing.B) {
 	board := New()
 	for n := 0; n < b.N; n++ {
-		board.Perft(5)
+		board.Perft(5, Quiet)
 	}
 }
 
 func BenchmarkPerft6(b *testing.B) {
 	board := New()
 	for n := 0; n < b.N; n++ {
-		board.Perft(6)
+		board.Perft(6, Quiet)
 	}
 }

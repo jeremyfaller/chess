@@ -46,7 +46,8 @@ func TestMateIn(t *testing.T) {
 			}
 
 			e := NewEval(test.depth)
-			e.Start(b).Wait()
+			e.Start(b)
+			e.Wait()
 			if e.score != checkmate {
 				t.Errorf("[%d] was not a checkmate %v", i, test.fen)
 			}
@@ -92,7 +93,8 @@ func mateBenchmarker(b *testing.B, d int, tests []evalTest) {
 				panic(fmt.Sprintf("[%d] error in fen %v", i, err))
 			}
 			e := NewEval(test.depth)
-			e.Start(b).Wait()
+			e.Start(b)
+			e.Wait()
 			if e.score != checkmate {
 				panic(fmt.Sprintf("[%d] was not a checkmate %v", i, test.fen))
 			}

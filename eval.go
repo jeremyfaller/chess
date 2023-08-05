@@ -8,6 +8,23 @@ import (
 	"time"
 )
 
+const (
+	maxScore  = 10000000000
+	minScore  = -maxScore
+	stalemate = 0
+	checkmate = minScore
+)
+
+// GameResult signifies what's happening in the game.
+type GameResult int
+
+const (
+	InProgress GameResult = iota
+	Draw
+	WhiteIsMated
+	BlackIsMated
+)
+
 type doneChan chan struct{}
 
 type Eval struct {
@@ -26,42 +43,23 @@ type Eval struct {
 	cancel   context.CancelFunc
 	running  bool
 
+	results EvalResults
+
 	// Options
 	useBook bool
 	debug   bool
 }
 
-type Line struct {
-	c     Piece
-	Score Score
-	Moves []Move
+// EvalResults holds the results from an evaluation.
+type EvalResults struct {
+	BestMove Move
+	Score    Score
+	Result   GameResult
+	MateIn   int
 }
 
-func newLine(d int, c Piece) Line {
-	return Line{
-		c:     c,
-		Score: minScore,
-		Moves: make([]Move, d),
-	}
-}
-
-func (l *Line) add(m Move, s Score, d int) {
-	if m.p.Color() != l.c {
-		s *= -1
-	}
-
-	// Ignore worse Lines.
-	if s < l.Score && d != 0 {
-		return
-	}
-
-	l.Score = s
-	if len(l.Moves) < d+1 {
-		newMoves := make([]Move, d+1)
-		copy(newMoves, l.Moves)
-		l.Moves = newMoves
-	}
-	l.Moves[d] = m
+func (e EvalResults) IsMate() bool {
+	return e.Result == WhiteIsMated || e.Result == BlackIsMated
 }
 
 // Creates a new Eval.
@@ -71,6 +69,10 @@ func NewEval(depth int) Eval {
 		useBook: true,
 		rand:    rand.New(rand.NewSource(time.Now().UnixNano())),
 	}
+}
+
+func (e *Eval) Results() EvalResults {
+	return e.results
 }
 
 // SetDebug sets the debug state.
@@ -92,8 +94,14 @@ func (e *Eval) SetDuration(d time.Duration) *Eval {
 	return e
 }
 
+// IsRunning returns true if the eval engine is running.
 func (e *Eval) IsRunning() bool {
 	return e.running
+}
+
+// reportMove reports the move.
+func (e *Eval) reportMove(m Move) {
+	fmt.Println("bestmove", m)
 }
 
 // sortMoves sorts the possible moves, trying to find good ones first.
@@ -191,7 +199,7 @@ func (e *Eval) Wait() {
 }
 
 // Start begins an evaluation.
-func (e *Eval) Start(b *Board) *Eval {
+func (e *Eval) Start(b *Board) {
 	// Stop and previously running evaluation.
 	e.Stop()
 
@@ -200,10 +208,7 @@ func (e *Eval) Start(b *Board) *Eval {
 	defer e.m.Unlock()
 	e.setup()
 
-	origDepth := e.depth
-	movesToCheck := make([][]Move, origDepth+1)
-	player := b.state.turn
-	line := newLine(origDepth, player)
+	movesToCheck := make([][]Move, e.depth+1)
 
 	shouldCancel := func() bool {
 		select {
@@ -217,17 +222,17 @@ func (e *Eval) Start(b *Board) *Eval {
 	if e.useBook {
 		move, found := getBook(b, e.rand)
 		if found {
-			fmt.Println("in book:", move)
+			e.reportMove(move)
 		}
 	}
 
-	var search func(int, Score, Score) Score
-	search = func(d int, alpha, beta Score) Score {
+	var search func(int, int, Score, Score) Score
+	search = func(d, targetD int, alpha, beta Score) Score {
 		// Stats.
 		e.positions += 1
 
 		// Get a link to our local slice.
-		moves := movesToCheck[origDepth-d][:0]
+		moves := movesToCheck[d][:0]
 		moves = b.PossibleMoves(moves)
 		e.sortMoves(moves)
 
@@ -242,7 +247,7 @@ func (e *Eval) Start(b *Board) *Eval {
 		// If we're done, just calculate the score.
 		// TODO(jfaller): Might want to do this after completing all
 		// checks or captures.
-		if d == 0 {
+		if d == targetD {
 			return e.calc(b)
 		}
 
@@ -253,18 +258,10 @@ func (e *Eval) Start(b *Board) *Eval {
 			}
 
 			b.MakeMove(move)
-			evaluation := -search(d-1, -beta, -alpha)
+			evaluation := -search(d+1, targetD, -beta, -alpha)
 			b.UnmakeMove()
 
-			// Add the move to the line.
-			line.add(move, evaluation, origDepth-d)
-			if d == origDepth {
-				line = newLine(origDepth, player)
-			}
-
 			// Prune early.
-			// TODO(jfaller): need to check that the engine will find mulitple
-			// checkmates from a given position.
 			if evaluation >= beta {
 				return beta
 			}
@@ -278,9 +275,8 @@ func (e *Eval) Start(b *Board) *Eval {
 	e.running = true
 	go func() {
 		startTime := time.Now()
-		e.score = search(origDepth, minScore, maxScore)
+		e.score = search(0, e.depth, minScore, maxScore)
 		e.totalTime += time.Now().Sub(startTime)
 		e.running = false
 	}()
-	return e
 }

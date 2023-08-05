@@ -714,10 +714,17 @@ type perftHash struct {
 	d int
 }
 
+type PerftVerbosity int
+
+const (
+	Quiet PerftVerbosity = iota
+	Verbose
+)
+
 // Perft calculates the number of possible moves at a given depth. It's quite
 // helpful debugging the move generation. Optionally, Perft will also print the
 // number of reachable moves for each valid move in the given board state.
-func (b *Board) Perft(origDepth int) uint64 {
+func (b *Board) Perft(origDepth int, verbosity PerftVerbosity) uint64 {
 	if origDepth == 0 {
 		return 0
 	}
@@ -765,7 +772,7 @@ func (b *Board) Perft(origDepth int) uint64 {
 		return total
 	}
 
-	return perft(origDepth, true)
+	return perft(origDepth, verbosity == Verbose)
 }
 
 // EmptyBoard returns a new, empty board. No state of gameplay is set up.

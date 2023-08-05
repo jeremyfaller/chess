@@ -22,13 +22,6 @@ const (
 
 type Score int
 
-const (
-	maxScore  = 10000000000
-	minScore  = -maxScore
-	stalemate = 0
-	checkmate = minScore
-)
-
 var scores = []Score{
 	0,       // White|Empty
 	100,     // White|Pawn
