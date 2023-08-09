@@ -1,6 +1,6 @@
 package main
 
-//go:generate go run magic_gen.go magic.go bit.go coord.go dir.go
+//go:generate go run magic_gen.go magic.go bit.go coord.go dir.go size.go
 
 // Goal:
 // magic := rookMagicBitboards[rookPos]
