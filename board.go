@@ -896,8 +896,6 @@ func FromFEN(s string) (*Board, error) {
 	// Parse the full move.
 	if m, err := strconv.Atoi(parts[5]); err != nil {
 		return nil, fmt.Errorf("error parsing full moves: %w", err)
-	} else if m < 1 {
-		return nil, fmt.Errorf("fullmove < 1: %d", m)
 	} else {
 		b.state.fullMove = m
 	}
