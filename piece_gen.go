@@ -120,12 +120,15 @@ func gen(w io.Writer) {
 	fmt.Fprintf(w, "var movesForPiece = [][64][]Coord {\n")
 	for i := range movesForPiece {
 		fmt.Fprintf(w, "\t[64][]Coord {\n")
-		for j := range movesForPiece[i] {
-			fmt.Fprintf(w, "\t\t[]Coord {")
-			for k := range movesForPiece[i][j] {
-				fmt.Fprintf(w, " %d,", movesForPiece[i][j][k].Idx())
+		p := Piece(i).Colorless()
+		if p == Pawn || p == Knight || p == King {
+			for j := range movesForPiece[i] {
+				fmt.Fprintf(w, "\t\t[]Coord {")
+				for k := range movesForPiece[i][j] {
+					fmt.Fprintf(w, " %d,", movesForPiece[i][j][k].Idx())
+				}
+				fmt.Fprintf(w, "\t\t},\n")
 			}
-			fmt.Fprintf(w, "\t\t},\n")
 		}
 		fmt.Fprintf(w, "\t},\n")
 	}
