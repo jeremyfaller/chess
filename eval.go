@@ -278,11 +278,6 @@ func (e *Eval) Start(b *Board) {
 		if d == targetD {
 			return e.calc(b)
 		}
-		/*
-			if d == 1 {
-				fmt.Println("checking:", line, moves)
-			}
-		*/
 
 		// Alpha-beta prune the search tree.
 		for _, move := range moves {
