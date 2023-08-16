@@ -454,7 +454,7 @@ queenCheckRook:
 			moves = append(moves, move)
 		} else {
 			// Add a promotion for each piece.
-			for _, promotion := range []Piece{Knight, Bishop, Rook, Queen} {
+			for _, promotion := range []Piece{Queen, Rook, Bishop, Knight} {
 				move.promotion = promotion | p.Color()
 				if b.isLegalMove(&move) {
 					moves = append(moves, move)
