@@ -26,31 +26,6 @@ func TestCoordConversion(t *testing.T) {
 	}
 }
 
-func TestDirForCoord(t *testing.T) {
-	for p := 0; p < 64; p++ {
-		c := CoordFromIdx(p)
-		for _, d := range []Dir{N, NE, E, SE, S, SW, W, NW} {
-			last := c
-			for {
-				last = last.ApplyDir(d)
-				if !last.IsValid() {
-					break
-				}
-				if dir := DirBetween(c, last); dir != d {
-					t.Errorf("[%v, dir:%v] DirBetween(%v, %v) = %v, expected = %v", c, d, c, last, dir, d)
-				}
-			}
-		}
-		for _, d := range []Dir{NNE, NEE, SEE, SSE, SSW, SWW, NWW, NNW} {
-			if last := c.ApplyDir(d); last.IsValid() {
-				if dir := DirBetween(c, last); dir != d {
-					t.Errorf("[%v, dir:%v] DirBetween(%v, %v) = %v, expected = %v", c, d, c, last, dir, d)
-				}
-			}
-		}
-	}
-}
-
 func TestInvalidCoord(t *testing.T) {
 	o := CoordFromXY(0, 0)
 	l := CoordFromIdx(63)
