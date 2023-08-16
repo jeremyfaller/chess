@@ -150,7 +150,7 @@ func (e *Eval) sortMoves(moves []Move, b *Board) int {
 	}
 
 	// Move promotions to the next place.
-	pIdx := 0
+	pIdx := cIdx
 	for i := cIdx; i < idx; i++ {
 		if moves[i].IsPromotion() {
 			moves[pIdx], moves[i] = moves[i], moves[pIdx]

@@ -3,6 +3,7 @@ package main
 import (
 	_ "embed"
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
 	"testing"
@@ -31,6 +32,30 @@ func getTests(dat string) []evalTest {
 		tests = append(tests, evalTest{depth: Depth(2*depth - 1), fen: str[2:]})
 	}
 	return tests
+}
+
+func TestMoveSorting(t *testing.T) {
+	coord := testingCoordFunc(t)
+	m := Move{p: White | Pawn, from: coord("a2"), to: coord("a4")}
+	c := Move{p: White | Pawn, from: coord("a2"), to: coord("b3"), isCapture: true}
+	p := Move{p: White | Pawn, from: coord("a7"), to: coord("a8"), promotion: White | Queen}
+	x := Move{p: White | Pawn, from: coord("a2"), to: coord("a3"), isCheck: true}
+
+	tests := []struct {
+		b, a []Move
+	}{
+		{[]Move{m, p, c, x}, []Move{x, p, c, m}},
+	}
+	for _, test := range tests {
+		sorted := make([]Move, len(test.b))
+		copy(sorted, test.b)
+		b := New()
+		e := NewEval(10)
+		e.sortMoves(sorted, b)
+		if !reflect.DeepEqual(sorted, test.a) {
+			t.Errorf("sortMove(%v) = %v, expected %v", test.b, sorted, test.a)
+		}
+	}
 }
 
 func TestMateIn(t *testing.T) {
