@@ -55,6 +55,7 @@ func (u *UCI) listOptions() {
 	u.Writeln("")
 	u.Writeln(fmt.Sprintf("option name Thread type spin default %d min 1 max %d", numProcs, numProcs))
 	u.Writeln("option name Book type check default true")
+	u.Writeln("option name TranspositionMB type spin default 10 min 1 max 1000")
 	u.Writeln("uciok")
 }
 
@@ -86,8 +87,13 @@ func (u *UCI) setOption(tokens []string) {
 		} else if tokens[2] == "false" {
 			u.e.SetBook(false)
 		} else {
-			fmt.Println("HERE")
 			u.printError(optionErr, tokens)
+		}
+	case "TranspositionMB":
+		if v, err := strconv.Atoi(tokens[2]); err != nil || v < 0 {
+			u.printError(optionErr, tokens)
+		} else {
+			u.e.SetTranspositionTableSize(v)
 		}
 	default:
 		u.printError(optionErr, tokens)

@@ -4,16 +4,23 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"slices"
 	"sync"
 	"time"
 )
 
+type Depth uint8
+
 const (
-	maxScore  = 10000000000
+	maxScore  = 29999
 	minScore  = -maxScore
 	stalemate = 0
-	checkmate = minScore
+	checkmate = 10000
 )
+
+func IsMateScore(s Score) bool {
+	return s+50 > checkmate || s-50 < -checkmate
+}
 
 // GameResult signifies what's happening in the game.
 type GameResult int
@@ -29,7 +36,7 @@ type doneChan chan struct{}
 
 type Eval struct {
 	positions int
-	depth     int
+	depth     Depth
 	score     Score
 	rand      *rand.Rand
 
@@ -44,6 +51,8 @@ type Eval struct {
 	running  bool
 
 	results EvalResults
+
+	tt *TranspositionTable
 
 	// Options
 	useBook bool
@@ -63,11 +72,12 @@ func (e EvalResults) IsMate() bool {
 }
 
 // Creates a new Eval.
-func NewEval(depth int) Eval {
+func NewEval(depth Depth) Eval {
 	return Eval{
 		depth:   depth,
 		useBook: true,
 		rand:    rand.New(rand.NewSource(time.Now().UnixNano())),
+		tt:      NewTranspositionTable(20),
 	}
 }
 
@@ -83,6 +93,11 @@ func (e *Eval) SetDebug(v bool) {
 // SetBook determines if the evaluation engine will use the book.
 func (e *Eval) SetBook(v bool) {
 	e.useBook = v
+}
+
+// SetTranspositionTableSize sets the size (in MB) of the TranspositionTable.
+func (e *Eval) SetTranspositionTableSize(sizeMB int) {
+	e.tt.Resize(sizeMB)
 }
 
 // SetDuration stops the current evaluation, and
@@ -108,12 +123,13 @@ func (e *Eval) reportMove(m Move) {
 //
 // We also return the number of moves that are special, ie checks, promotions,
 // and captures.
-///
+// /
 // Moves will be sorted in the following order:
-//   [0..X] Checks
-//   [X..Y] Promotions
-//   [Y..Z] Captures
-//   [Z..N] Rest
+//
+//	[0..X] Checks
+//	[X..Y] Promotions
+//	[Y..Z] Captures
+//	[Z..N] Rest
 func (e *Eval) sortMoves(moves []Move) int {
 	// Move likely good moves to the head.
 	idx := 0
@@ -175,6 +191,10 @@ func (e *Eval) TimeString() string {
 	return fmt.Sprintf("%dns", d.Nanoseconds())
 }
 
+// quietWait waits till evaluation is done quiely.
+func (e *Eval) quietWait() {
+}
+
 // Stop stops an evaluation.
 func (e *Eval) Stop() {
 	e.m.Lock()
@@ -188,7 +208,11 @@ func (e *Eval) Stop() {
 
 // setup creates the context for an evaluation.
 func (e *Eval) setup() {
-	e.ctx, e.cancel = context.WithTimeout(context.Background(), e.duration)
+	if e.duration != 0 {
+		e.ctx, e.cancel = context.WithTimeout(context.Background(), e.duration)
+	} else {
+		e.ctx, e.cancel = context.WithCancel(context.Background())
+	}
 }
 
 // Wait delays until an evaluation is done.
@@ -220,14 +244,22 @@ func (e *Eval) Start(b *Board) {
 	}
 
 	if e.useBook {
-		move, found := getBook(b, e.rand)
-		if found {
+		if move, found := getBook(b, e.rand); found {
 			e.reportMove(move)
 		}
 	}
 
-	var search func(int, int, Score, Score) Score
-	search = func(d, targetD int, alpha, beta Score) Score {
+	line := []Move{}
+
+	var search func(Depth, Depth, Score, Score) Score
+	search = func(d, targetD Depth, alpha, beta Score) Score {
+		// If we've already seen this position, we don't need to keep searching.
+		if ttVal, _, found := e.tt.Lookup(b.ZHash(), d, targetD-d, alpha, beta); found {
+			return ttVal
+		}
+		var bestMove Move
+		evalBound := TTUpper
+
 		// Stats.
 		e.positions += 1
 
@@ -239,7 +271,7 @@ func (e *Eval) Start(b *Board) {
 		// If no moves, we could be in stalemate or checkmate.
 		if len(moves) == 0 {
 			if b.IsCheck() {
-				return checkmate
+				return -(checkmate - Score(d))
 			}
 			return stalemate
 		}
@@ -250,6 +282,11 @@ func (e *Eval) Start(b *Board) {
 		if d == targetD {
 			return e.calc(b)
 		}
+		/*
+			if d == 1 {
+				fmt.Println("checking:", line, moves)
+			}
+		*/
 
 		// Alpha-beta prune the search tree.
 		for _, move := range moves {
@@ -258,15 +295,26 @@ func (e *Eval) Start(b *Board) {
 			}
 
 			b.MakeMove(move)
+			line = append(line, move)
 			evaluation := -search(d+1, targetD, -beta, -alpha)
+			line = slices.Delete(line, len(line)-1, len(line))
 			b.UnmakeMove()
 
 			// Prune early.
 			if evaluation >= beta {
+				e.tt.Insert(b.ZHash(), move, beta, d, targetD-d, TTLower)
 				return beta
 			}
 			if evaluation > alpha {
+				bestMove = move
 				alpha = evaluation
+				evalBound = TTExact
+			}
+		}
+		if !bestMove.IsNull() {
+			e.tt.Insert(b.ZHash(), bestMove, alpha, d, targetD-d, evalBound)
+			if d == 0 {
+				e.reportMove(bestMove)
 			}
 		}
 		return alpha

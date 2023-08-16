@@ -13,7 +13,7 @@ import (
 var mates string
 
 type evalTest struct {
-	depth int
+	depth Depth
 	fen   string
 }
 
@@ -28,18 +28,28 @@ func getTests(dat string) []evalTest {
 		if err != nil {
 			panic(err)
 		}
-		tests = append(tests, evalTest{depth: 2*depth - 1, fen: str[2:]})
+		tests = append(tests, evalTest{depth: Depth(2*depth - 1), fen: str[2:]})
 	}
 	return tests
 }
 
 func TestMateIn(t *testing.T) {
+	queue := make(chan struct{}, 10)
+
 	// Run the tests.
 	for i, test := range getTests(mates) {
 		test := test
+		name := fmt.Sprintf("test %d, mate in %d", i, test.depth)
 
-		t.Run(fmt.Sprintf("test %d, mate in %d", i, test.depth), func(t *testing.T) {
+		queue <- struct{}{}
+		t.Run(name, func(t *testing.T) {
+			<-queue
 			t.Parallel()
+
+			if test.depth >= 7 {
+				t.Skip("skipping: " + t.Name() + " because it's too long")
+			}
+
 			b, err := FromFEN(test.fen)
 			if err != nil {
 				t.Fatalf("[%d] error in fen %v", i, err)
@@ -48,15 +58,32 @@ func TestMateIn(t *testing.T) {
 			e := NewEval(test.depth)
 			e.Start(b)
 			e.Wait()
-			if e.score != checkmate {
-				t.Errorf("[%d] was not a checkmate %v", i, test.fen)
+			if !IsMateScore(e.score) {
+				t.Errorf("[%d] was not a checkmate %v, %v", i, test.fen, e.score)
 			}
 		})
 	}
 }
 
+func TestIsMateScore(t *testing.T) {
+	tests := []struct {
+		s      Score
+		isMate bool
+	}{
+		{checkmate, true},
+		{-checkmate, true},
+		{0, false},
+	}
+
+	for i, test := range tests {
+		if v := IsMateScore(test.s); v != test.isMate {
+			t.Errorf("[%d] IsMateScore(%v) = %t, expected %v", i, test.s, v, test.isMate)
+		}
+	}
+}
+
 func TestEvalCancel(t *testing.T) {
-	e := NewEval(1000)
+	e := NewEval(100)
 	e.Start(New())
 	if !e.IsRunning() {
 		t.Fatalf("expected eval running")
@@ -70,7 +97,7 @@ func TestEvalCancel(t *testing.T) {
 func TestEvalTimeout(t *testing.T) {
 	t.Parallel()
 	dur := 10 * time.Millisecond
-	e := NewEval(1000)
+	e := NewEval(100)
 	e.SetDuration(dur)
 	e.Start(New())
 	if !e.IsRunning() {
@@ -82,7 +109,7 @@ func TestEvalTimeout(t *testing.T) {
 	}
 }
 
-func mateBenchmarker(b *testing.B, d int, tests []evalTest) {
+func mateBenchmarker(b *testing.B, d Depth, tests []evalTest) {
 	for j := 0; j < b.N; j++ {
 		for i, test := range getTests(mates) {
 			if test.depth != d {
@@ -95,8 +122,8 @@ func mateBenchmarker(b *testing.B, d int, tests []evalTest) {
 			e := NewEval(test.depth)
 			e.Start(b)
 			e.Wait()
-			if e.score != checkmate {
-				panic(fmt.Sprintf("[%d] was not a checkmate %v", i, test.fen))
+			if !IsMateScore(e.score) {
+				panic(fmt.Sprintf("[%d] was not a checkmate %v, %d", i, test.fen, e.score))
 			}
 		}
 	}
@@ -108,4 +135,8 @@ func BenchmarkMateIn2(b *testing.B) {
 
 func BenchmarkMateIn3(b *testing.B) {
 	mateBenchmarker(b, 3*2-1, getTests(mates))
+}
+
+func BenchmarkMateIn4(b *testing.B) {
+	mateBenchmarker(b, 4*2-1, getTests(mates))
 }

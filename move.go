@@ -53,6 +53,11 @@ func (m *Move) IsQueensideCastle() bool {
 	return m.to.X() < m.from.X()
 }
 
+// IsNull returns true if a Move is null.
+func (m *Move) IsNull() bool {
+	return m.to == m.from
+}
+
 // CastleMidCoord returns the Coord for the middle of a castling move.
 func (m *Move) CastleMidCoord() Coord {
 	if !m.IsCastle() {

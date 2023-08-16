@@ -20,24 +20,24 @@ const (
 
 //go:generate go run piece.go piece_gen.go dir.go coord.go bit.go
 
-type Score int
+type Score int16
 
 var scores = []Score{
-	0,       // White|Empty
-	100,     // White|Pawn
-	300,     // White|Knight
-	300,     // White|Bishop
-	500,     // White|Rook
-	900,     // White|Queen
-	100000,  // White|King
-	0,       // Unused
-	0,       // Black|Empty
-	-100,    // Black|Pawn
-	-300,    // Black|Knight
-	-300,    // Black|Bishop
-	-500,    // Black|Rook
-	-900,    // Black|Queen
-	-100000, // Black|King
+	0,      // White|Empty
+	100,    // White|Pawn
+	300,    // White|Knight
+	300,    // White|Bishop
+	500,    // White|Rook
+	900,    // White|Queen
+	10000,  // White|King
+	0,      // Unused
+	0,      // Black|Empty
+	-100,   // Black|Pawn
+	-300,   // Black|Knight
+	-300,   // Black|Bishop
+	-500,   // Black|Rook
+	-900,   // Black|Queen
+	-10000, // Black|King
 }
 
 var runeToColorlessPiece = map[rune]Piece{
