@@ -116,7 +116,7 @@ func (e *Eval) IsRunning() bool {
 
 // reportMove reports the move.
 func (e *Eval) reportMove(m Move) {
-	fmt.Println("bestmove", m)
+	//fmt.Println("bestmove", m)
 }
 
 // sortMoves sorts the possible moves, trying to find good ones first.
@@ -130,7 +130,7 @@ func (e *Eval) reportMove(m Move) {
 //	[X..Y] Promotions
 //	[Y..Z] Captures
 //	[Z..N] Rest
-func (e *Eval) sortMoves(moves []Move) int {
+func (e *Eval) sortMoves(moves []Move, b *Board) int {
 	// Move likely good moves to the head.
 	idx := 0
 	for i := range moves {
@@ -189,10 +189,6 @@ func (e *Eval) TimeString() string {
 		return fmt.Sprintf("%dus", d.Microseconds())
 	}
 	return fmt.Sprintf("%dns", d.Nanoseconds())
-}
-
-// quietWait waits till evaluation is done quiely.
-func (e *Eval) quietWait() {
 }
 
 // Stop stops an evaluation.
@@ -266,7 +262,7 @@ func (e *Eval) Start(b *Board) {
 		// Get a link to our local slice.
 		moves := movesToCheck[d][:0]
 		moves = b.PossibleMoves(moves)
-		e.sortMoves(moves)
+		e.sortMoves(moves, b)
 
 		// If no moves, we could be in stalemate or checkmate.
 		if len(moves) == 0 {
