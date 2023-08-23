@@ -7,6 +7,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
 )
 
 var (
@@ -139,6 +140,16 @@ func (u *UCI) goCmd(cmd string) error {
 			fmt.Printf("\n\nTotal nodes: %d\n\n", u.b.Perft(cnt, Verbose))
 		} else {
 			return fmt.Errorf("no perft count specified")
+		}
+
+	case "movetime":
+		res := strings.SplitN(trim(opts), ws, 2)
+		cnt, err := strconv.Atoi(res[0])
+		if err == nil {
+			u.e.SetDuration(time.Millisecond * time.Duration(cnt))
+			u.e.Start(u.b)
+		} else {
+			return fmt.Errorf("bad timeout")
 		}
 	}
 
