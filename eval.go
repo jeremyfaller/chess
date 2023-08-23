@@ -116,7 +116,7 @@ func (e *Eval) IsRunning() bool {
 
 // reportMove reports the move.
 func (e *Eval) reportMove(m Move) {
-	//fmt.Println("bestmove", m)
+	fmt.Println("bestmove", m)
 }
 
 // sortMoves sorts the possible moves, trying to find good ones first.
@@ -242,6 +242,7 @@ func (e *Eval) Start(b *Board) {
 	if e.useBook {
 		if move, found := getBook(b, e.rand); found {
 			e.reportMove(move)
+			return
 		}
 	}
 
