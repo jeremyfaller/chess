@@ -109,7 +109,8 @@ func TestIsMateScore(t *testing.T) {
 
 func TestEvalCancel(t *testing.T) {
 	e := NewEval(100)
-	e.Start(New())
+	b, _ := FromFEN("1nbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
+	e.Start(b)
 	if !e.IsRunning() {
 		t.Fatalf("expected eval running")
 	}
@@ -124,7 +125,8 @@ func TestEvalTimeout(t *testing.T) {
 	dur := 10 * time.Millisecond
 	e := NewEval(100)
 	e.SetDuration(dur)
-	e.Start(New())
+	b, _ := FromFEN("1nbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
+	e.Start(b)
 	if !e.IsRunning() {
 		t.Fatalf("expected eval running")
 	}

@@ -50,25 +50,11 @@ type Eval struct {
 	cancel   context.CancelFunc
 	running  bool
 
-	results EvalResults
-
 	tt *TranspositionTable
 
 	// Options
 	useBook bool
 	debug   bool
-}
-
-// EvalResults holds the results from an evaluation.
-type EvalResults struct {
-	BestMove Move
-	Score    Score
-	Result   GameResult
-	MateIn   int
-}
-
-func (e EvalResults) IsMate() bool {
-	return e.Result == WhiteIsMated || e.Result == BlackIsMated
 }
 
 // Creates a new Eval.
@@ -79,10 +65,6 @@ func NewEval(depth Depth) Eval {
 		rand:    rand.New(rand.NewSource(time.Now().UnixNano())),
 		tt:      NewTranspositionTable(20),
 	}
-}
-
-func (e *Eval) Results() EvalResults {
-	return e.results
 }
 
 // SetDebug sets the debug state.
@@ -131,32 +113,32 @@ func (e *Eval) reportMove(m Move) {
 //	[Y..Z] Captures
 //	[Z..N] Rest
 func (e *Eval) sortMoves(moves []Move, b *Board) int {
-	// Move likely good moves to the head.
+	// Find likely good moves.
 	idx := 0
-	for i := range moves {
-		if moves[i].isCheck || moves[i].isCapture || moves[i].IsPromotion() {
+	for i, m := range moves {
+		if m.isCheck || m.IsPromotion() || m.isCapture {
 			moves[idx], moves[i] = moves[i], moves[idx]
 			idx += 1
 		}
 	}
 
 	// Move checks to the begining.
-	cIdx := 0
-	for i := 0; i < idx; i++ {
+	pos := 0
+	for i := pos; i < idx; i++ {
 		if moves[i].isCheck {
-			moves[cIdx], moves[i] = moves[i], moves[cIdx]
-			cIdx += 1
+			moves[pos], moves[i] = moves[i], moves[pos]
+			pos += 1
 		}
 	}
 
 	// Move promotions to the next place.
-	pIdx := cIdx
-	for i := cIdx; i < idx; i++ {
+	for i := pos; i < idx; i++ {
 		if moves[i].IsPromotion() {
-			moves[pIdx], moves[i] = moves[i], moves[pIdx]
-			pIdx += 1
+			moves[pos], moves[i] = moves[i], moves[pos]
+			pos += 1
 		}
 	}
+
 	return idx
 }
 
