@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"os"
 	"slices"
 	"sync"
 	"time"
@@ -52,6 +53,8 @@ type Eval struct {
 
 	tt *TranspositionTable
 
+	output *os.File
+
 	// Options
 	useBook bool
 	debug   bool
@@ -77,6 +80,10 @@ func (e *Eval) SetBook(v bool) {
 	e.useBook = v
 }
 
+func (e *Eval) SetOutput(o *os.File) {
+	e.output = o
+}
+
 // SetTranspositionTableSize sets the size (in MB) of the TranspositionTable.
 func (e *Eval) SetTranspositionTableSize(sizeMB int) {
 	e.tt.Resize(sizeMB)
@@ -98,7 +105,9 @@ func (e *Eval) IsRunning() bool {
 
 // reportMove reports the move.
 func (e *Eval) reportMove(m Move) {
-	fmt.Println("bestmove", m)
+	if e.output != nil {
+		fmt.Fprintf(e.output, "bestmove: %v\n", m)
+	}
 }
 
 // sortMoves sorts the possible moves, trying to find good ones first.

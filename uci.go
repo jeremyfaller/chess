@@ -29,6 +29,7 @@ type UCI struct {
 
 func NewUCI() *UCI {
 	eval := NewEval(5)
+	eval.SetOutput(os.Stdout)
 	return &UCI{e: &eval}
 }
 
