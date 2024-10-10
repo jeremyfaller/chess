@@ -77,7 +77,6 @@ func TestBadCastleStartingLocations(t *testing.T) {
 		{"c8,O-O-O", W2, CoordFromIdx(8*7 + 2), false},
 	}
 	for i, test := range tests {
-		t.Logf("%s\n", test.desc)
 		v := test.loc.ApplyDir(test.dir)
 		if value := v.IsValid(); value != test.valid {
 			t.Errorf("[%d] %s IsValid() = %v, expected %v", i, test.desc, value, test.valid)

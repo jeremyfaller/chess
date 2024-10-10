@@ -173,7 +173,6 @@ func TestIsLegalMove(t *testing.T) {
 	}
 
 	for i, test := range tests {
-		t.Logf("[%d] %s", i, test.desc)
 		b, err := FromFEN(test.fen)
 		if err != nil {
 			t.Errorf("[%d] %s error creating board: %v", i, test.desc, err)
@@ -293,7 +292,6 @@ func TestGetMoves(t *testing.T) {
 	}
 
 	for i, test := range tests {
-		t.Logf("[%d] %s %+v\n", i, test.desc, test.c)
 		b, err := FromFEN(test.fen)
 		if err != nil {
 			t.Fatalf("[%s] error creating board; %v", test.desc, err)
@@ -420,7 +418,6 @@ func TestUpdateCastleState(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		t.Logf("%s", test.desc)
 		b, _ := makeMove(t, test.desc, test.fen, test.from, test.to)
 		if s := b.castleString(); s != test.state {
 			t.Errorf("[%s] expected %q to contain %q", test.desc, s, test.state)
@@ -556,13 +553,11 @@ func TestPerft(t *testing.T) {
 		test := test // rebind
 		t.Run(test.desc, func(t *testing.T) {
 			t.Parallel()
-			t.Logf("[%d] %v should equal %d", i, test.desc, test.target)
 			b, err := FromFEN(test.fen)
 			if err != nil {
 				t.Errorf("[%d] %s FromFEN(%q) = %v", i, test.desc, test.fen, err)
 			}
 			if len(test.moves) != 0 {
-				t.Logf("[%d] %s executing moves %v", i, test.desc, test.moves)
 				for _, move := range test.moves {
 					b.MakeMove(move)
 				}
@@ -605,7 +600,6 @@ func TestPossibleMoves(t *testing.T) {
 		}
 		moves := b.PossibleMoves(nil)
 		if len(moves) != len(test.moves) {
-			t.Logf("%v != %v", moves, test.moves)
 			t.Errorf("[%d] %s, len(moves) = %d, expected %d", i, test.desc, len(moves), len(test.moves))
 		}
 		for _, move := range test.moves {
