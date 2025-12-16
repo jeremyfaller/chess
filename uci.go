@@ -55,7 +55,7 @@ func (u *UCI) listOptions() {
 	u.Writeln("id name GopherChess")
 	u.Writeln("id author Jeremy Faller (jeremy.faller@gmail.com)")
 	u.Writeln("")
-	u.Writeln(fmt.Sprintf("option name Thread type spin default %d min 1 max %d", numProcs, numProcs))
+	u.Writeln(fmt.Sprintf("option name Threads type spin default %d min 1 max %d", numProcs, numProcs))
 	u.Writeln("option name Book type check default true")
 	u.Writeln("option name TranspositionMB type spin default 10 min 1 max 1000")
 	u.Writeln("uciok")
@@ -77,7 +77,7 @@ func (u *UCI) setOption(tokens []string) {
 	}
 
 	switch tokens[0] {
-	case "Thread":
+	case "Threads":
 		if v, err := strconv.Atoi(tokens[2]); err != nil {
 			u.printError(optionErr, tokens)
 		} else {

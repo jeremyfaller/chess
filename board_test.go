@@ -291,7 +291,7 @@ func TestGetMoves(t *testing.T) {
 		},
 	}
 
-	for i, test := range tests {
+	for _, test := range tests {
 		b, err := FromFEN(test.fen)
 		if err != nil {
 			t.Fatalf("[%s] error creating board; %v", test.desc, err)
