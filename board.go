@@ -1,10 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 	"unicode"
 )
 
@@ -714,19 +716,55 @@ type perftHash struct {
 	d int
 }
 
-type PerftVerbosity int
+type PerftConfig struct {
+	Quiet bool
+}
 
-const (
-	Quiet PerftVerbosity = iota
-	Verbose
-)
+type PerftResult struct {
+	Nodes          uint64
+	Count          uint64
+	Elapsed        time.Duration
+	NodesPerSecond uint64
+}
+
+// formatWtihCommas pretty prints the node count.
+func formatWithCommas(n uint64) (res string) {
+	s := strconv.FormatUint(n, 10)
+	nLength := len(s)
+	if nLength <= 3 {
+		return s // No commas needed for 3 or fewer digits
+	}
+
+	startIndex := nLength % 3
+	if startIndex == 0 {
+		startIndex = 3
+	}
+
+	var result strings.Builder
+	result.WriteString(s[:startIndex])
+	for i := startIndex; i < nLength; i += 3 {
+		result.WriteString(",")
+		result.WriteString(s[i : i+3])
+	}
+
+	return result.String()
+}
+
+// Formats a PerftResult.
+func (p PerftResult) String() string {
+	b := bytes.NewBuffer(nil)
+	fmt.Fprintf(b, "Total nodes: %d\n", p.Count)
+	fmt.Fprintf(b, "Elapsed Time: %v\n", p.Elapsed)
+	fmt.Fprintf(b, "Nodes/Sec: %s\n", formatWithCommas(p.NodesPerSecond))
+	return string(b.Bytes())
+}
 
 // Perft calculates the number of possible moves at a given depth. It's quite
 // helpful debugging the move generation. Optionally, Perft will also print the
 // number of reachable moves for each valid move in the given board state.
-func (b *Board) Perft(origDepth int, verbosity PerftVerbosity) uint64 {
+func (b *Board) Perft(origDepth int, config PerftConfig) (res PerftResult) {
 	if origDepth == 0 {
-		return 0
+		return res
 	}
 
 	// Prevents allocating space for moves at every depth.
@@ -746,6 +784,7 @@ func (b *Board) Perft(origDepth int, verbosity PerftVerbosity) uint64 {
 					fmt.Printf("%v: 1\n", m)
 				}
 			}
+			res.Nodes += uint64(len(moves))
 			return uint64(len(moves))
 		}
 
@@ -768,11 +807,16 @@ func (b *Board) Perft(origDepth int, verbosity PerftVerbosity) uint64 {
 			}
 			b.UnmakeMove()
 			total += cnt
+			res.Nodes += cnt
 		}
 		return total
 	}
 
-	return perft(origDepth, verbosity == Verbose)
+	start := time.Now()
+	res.Count = perft(origDepth, config.Quiet == false)
+	res.Elapsed = time.Since(start)
+	res.NodesPerSecond = uint64(float64(res.Nodes) / res.Elapsed.Seconds())
+	return res
 }
 
 // EmptyBoard returns a new, empty board. No state of gameplay is set up.

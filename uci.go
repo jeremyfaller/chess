@@ -138,7 +138,8 @@ func (u *UCI) goCmd(cmd string) error {
 		res := strings.SplitN(trim(opts), ws, 2)
 		cnt, err := strconv.Atoi(res[0])
 		if err == nil {
-			fmt.Printf("\n\nTotal nodes: %d\n\n", u.b.Perft(cnt, Verbose))
+			res := u.b.Perft(cnt, PerftConfig{Quiet: true})
+			u.Writeln(res.String())
 		} else {
 			return fmt.Errorf("no perft count specified")
 		}

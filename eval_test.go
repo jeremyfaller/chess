@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"fmt"
 	"reflect"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -59,7 +60,7 @@ func TestMoveSorting(t *testing.T) {
 }
 
 func TestMateIn(t *testing.T) {
-	queue := make(chan struct{}, 10)
+	queue := make(chan struct{}, 2*runtime.NumCPU())
 
 	// Run the tests.
 	for i, test := range getTests(mates) {
@@ -71,9 +72,11 @@ func TestMateIn(t *testing.T) {
 			<-queue
 			t.Parallel()
 
-			if test.depth >= 7 {
-				t.Skip("skipping: " + t.Name() + " because it's too long")
-			}
+			/*
+				if test.depth >= 7 {
+					t.Skip("skipping: " + t.Name() + " because it's too long")
+				}
+			*/
 
 			b, err := FromFEN(test.fen)
 			if err != nil {

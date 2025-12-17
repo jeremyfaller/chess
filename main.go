@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"os"
 	"runtime/pprof"
@@ -12,6 +13,8 @@ var (
 	cpuProfile   = flag.String("cpuprofile", "", "filename where we should write the cpu profile")
 	memProfile   = flag.String("memprofile", "", "filename where we should write the mem profile")
 	traceProfile = flag.String("traceprofile", "", "filename where we should write trace output")
+
+	perft = flag.Int("perft", 0, "run perft then quit")
 )
 
 func main() {
@@ -38,6 +41,13 @@ func main() {
 		}
 		trace.Start(f)
 		defer trace.Stop()
+	}
+
+	if *perft != 0 {
+		b := New()
+		res := b.Perft(*perft, PerftConfig{Quiet: true})
+		fmt.Println(res)
+		return
 	}
 
 	u := NewUCI()
